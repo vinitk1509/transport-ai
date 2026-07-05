@@ -1,0 +1,9 @@
+node_modules
+.next
+backend/target
+backend/data
+backend/upload-dir
+data
+.git
+*.log
+tsconfig.tsbuildinfo

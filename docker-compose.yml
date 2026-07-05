@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: transport-ai-postgres
+    environment:
+      POSTGRES_DB: transport_ai
+      POSTGRES_USER: transport_ai
+      POSTGRES_PASSWORD: transport_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - transport_ai_postgres:/var/lib/postgresql/data
+
+  backend:
+    image: maven:3.9.9-eclipse-temurin-21
+    container_name: transport-ai-backend
+    working_dir: /workspace/backend
+    command: mvn spring-boot:run
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/transport_ai
+      DATABASE_USERNAME: transport_ai
+      DATABASE_PASSWORD: transport_ai
+      UPLOAD_DIR: /workspace/data/uploads
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/workspace/backend
+      - ./data:/workspace/data
+      - maven_cache:/root/.m2
+    depends_on:
+      - postgres
+
+volumes:
+  transport_ai_postgres:
+  maven_cache:

@@ -1,0 +1,2 @@
+ALTER TABLE app_users ADD COLUMN avatar VARCHAR(255);
+ALTER TABLE receipts ADD COLUMN private_marka VARCHAR(255);

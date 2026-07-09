@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState, useMemo, useEffect } from 'react'
 import {
   Upload, Search, Download, Trash2, Eye, Lock,
-  ChevronLeft, ChevronRight, FileX,
+  ChevronLeft, ChevronRight, FileX, Edit,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,7 +59,8 @@ export default function ReceiptsPage() {
           (r.consignor || '').toLowerCase().includes(q) ||
           (r.consignee || '').toLowerCase().includes(q) ||
           (r.source || '').toLowerCase().includes(q) ||
-          (r.destination || '').toLowerCase().includes(q)
+          (r.destination || '').toLowerCase().includes(q) ||
+          (r.privateMarka || '').toLowerCase().includes(q)
         )
       }
       return true
@@ -212,6 +213,7 @@ export default function ReceiptsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Consignor</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden md:table-cell">Consignee</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden lg:table-cell">Route</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden md:table-cell">P.M.</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Amount</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Actions</th>
                   </tr>
@@ -303,6 +305,7 @@ function ReceiptRow({ receipt: r, selected, onToggle, canDelete, canExport, onDe
       <td className="px-4 py-3 text-xs font-medium text-foreground max-w-[140px] truncate">{r.consignor || '-'}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell max-w-[140px] truncate">{r.consignee || '-'}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{r.source || '-'} → {r.destination || '-'}</td>
+      <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell max-w-[100px] truncate">{r.privateMarka || '-'}</td>
       <td className="px-4 py-3 text-right font-mono text-xs font-semibold text-foreground">
         ₹{(r.charges ?? r.amount ?? 0).toLocaleString('en-IN')}
       </td>
@@ -315,6 +318,14 @@ function ReceiptRow({ receipt: r, selected, onToggle, canDelete, canExport, onDe
               </Button>
             </TooltipTrigger>
             <TooltipContent>View</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-6 w-6" asChild>
+                <Link href={`/receipts/${r.id}/edit`}><Edit className="w-3.5 h-3.5" /></Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Edit</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

@@ -8,7 +8,15 @@ import com.transportai.backend.repository.EmailVerificationRepository;
 import com.transportai.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -21,6 +29,7 @@ public class AuthService {
     private final PasswordService passwordService;
     private final EmailService emailService;
     private final RateLimitService rateLimitService;
+    private final StorageService storageService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.auth.session-hours:12}")
@@ -32,12 +41,13 @@ public class AuthService {
     @Value("${app.auth.max-verification-attempts:5}")
     private int maxVerificationAttempts;
 
-    public AuthService(UserRepository userRepository, EmailVerificationRepository verificationRepository, PasswordService passwordService, EmailService emailService, RateLimitService rateLimitService) {
+    public AuthService(UserRepository userRepository, EmailVerificationRepository verificationRepository, PasswordService passwordService, EmailService emailService, RateLimitService rateLimitService, StorageService storageService) {
         this.userRepository = userRepository;
         this.verificationRepository = verificationRepository;
         this.passwordService = passwordService;
         this.emailService = emailService;
         this.rateLimitService = rateLimitService;
+        this.storageService = storageService;
     }
 
     public AuthController.VerificationResponse requestVerification(String email, String remoteAddress) {
@@ -137,6 +147,43 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    public void updatePassword(String authorizationHeader, String currentPassword, String newPassword) {
+        UserEntity user = requireUser(authorizationHeader);
+        if (!passwordService.verify(currentPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Incorrect current password.");
+        }
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new RuntimeException("New password must be at least 8 characters.");
+        }
+        user.setPasswordHash(passwordService.hash(newPassword));
+        userRepository.save(user);
+    }
+
+    public AuthController.UserResponse updateAvatar(String authorizationHeader, MultipartFile file) {
+        UserEntity user = requireUser(authorizationHeader);
+        try {
+            File imageFile = storageService.store(file);
+            user.setAvatar("/api/v1/auth/avatar/" + imageFile.getName());
+            user = userRepository.save(user);
+            return toUserResponse(user);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to upload avatar.", e);
+        }
+    }
+
+    public ResponseEntity<Resource> getAvatar(String filename) {
+        try {
+            Path file = storageService.load(filename);
+            InputStreamResource resource = new InputStreamResource(Files.newInputStream(file));
+            String contentType = Files.probeContentType(file);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE))
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     private UserEntity requireUser(String authorizationHeader) {
         String token = bearerToken(authorizationHeader);
         UserEntity user = userRepository.findBySessionToken(token).orElseThrow(() -> new UnauthorizedException("Unauthorized."));
@@ -154,7 +201,7 @@ public class AuthService {
                 user.getFirstName() + " " + user.getLastName(),
                 user.getEmail(),
                 user.getRole(),
-                initials(user),
+                user.getAvatar() != null ? user.getAvatar() : initials(user),
                 user.getCompany()
         );
     }

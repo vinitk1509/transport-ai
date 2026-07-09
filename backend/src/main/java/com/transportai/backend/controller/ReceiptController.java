@@ -142,6 +142,7 @@ public class ReceiptController {
             entity.setConsignee(extractedData.consignee() != null ? extractedData.consignee().name() : "");
             entity.setSource(extractedData.origin());
             entity.setDestination(extractedData.destination());
+            entity.setPrivateMarka(extractedData.privateMarka());
             double totalCharges = extractedData.freight() != null ? extractedData.freight().totalAmount() : -1.0;
             entity.setCharges(totalCharges);
             entity.setAmount(totalCharges);
@@ -266,6 +267,7 @@ public class ReceiptController {
         if (update.has("source")) existing.setSource(textValue(update, "source"));
         if (update.has("destination")) existing.setDestination(textValue(update, "destination"));
         if (update.has("biltyDate")) existing.setBiltyDate(textValue(update, "biltyDate"));
+        if (update.has("privateMarka")) existing.setPrivateMarka(textValue(update, "privateMarka"));
         if (update.has("packages")) existing.setPackages(update.path("packages").asInt());
         if (update.has("material")) existing.setMaterial(textValue(update, "material"));
         if (update.has("description")) existing.setDescription(textValue(update, "description"));

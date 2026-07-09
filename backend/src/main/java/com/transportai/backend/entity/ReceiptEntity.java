@@ -28,6 +28,7 @@ public class ReceiptEntity {
     private String source;
     private String destination;
     private String biltyDate;
+    private String privateMarka;
     private int packages;
     private String material;
     private String description;
@@ -94,6 +95,9 @@ public class ReceiptEntity {
 
     public String getBiltyDate() { return biltyDate; }
     public void setBiltyDate(String biltyDate) { this.biltyDate = biltyDate; }
+
+    public String getPrivateMarka() { return privateMarka; }
+    public void setPrivateMarka(String privateMarka) { this.privateMarka = privateMarka; }
 
     public int getPackages() { return packages; }
     public void setPackages(int packages) { this.packages = packages; }

@@ -9,22 +9,50 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/lib/auth-context'
+import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { Loader2, Upload, Camera } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useRef } from 'react'
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
   const [company, setCompany] = useState({
     name: user?.company ?? '',
     email: user?.email ?? '',
   })
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' })
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB')
+      return
+    }
+
+    setIsUploadingAvatar(true)
+    try {
+      await api.updateAvatar(file)
+      await refreshUser()
+      toast.success('Profile picture updated successfully')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update profile picture')
+    } finally {
+      setIsUploadingAvatar(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const handleSaveCompany = () => {
     toast.info('Profile update API is not connected yet.')
   }
 
-  const handleSavePassword = () => {
+  const handleSavePassword = async () => {
     if (!passwords.current || !passwords.new || !passwords.confirm) {
       toast.error('Please fill all password fields')
       return
@@ -33,8 +61,17 @@ export default function SettingsPage() {
       toast.error('New passwords do not match')
       return
     }
-    toast.info('Password update API is not connected yet.')
-    setPasswords({ current: '', new: '', confirm: '' })
+    
+    setIsUpdatingPassword(true)
+    try {
+      await api.updatePassword(passwords.current, passwords.new)
+      toast.success('Password updated successfully')
+      setPasswords({ current: '', new: '', confirm: '' })
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update password')
+    } finally {
+      setIsUpdatingPassword(false)
+    }
   }
 
   return (
@@ -54,13 +91,47 @@ export default function SettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="company" className="mt-6">
+        <TabsContent value="company" className="mt-6 space-y-6">
           <Card className="border-border shadow-sm">
             <CardHeader>
               <CardTitle className="text-base">Company Profile</CardTitle>
               <CardDescription>Only stored account fields are shown here. No placeholder profile data is used.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-6 pb-2">
+                <Avatar className="w-20 h-20 border bg-primary">
+                  {user?.avatar?.includes('/') ? (
+                    <AvatarImage src={`http://localhost:8080${user.avatar}`} alt={user.name} />
+                  ) : null}
+                  <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
+                    {user?.avatar && !user.avatar.includes('/') ? user.avatar : (user?.name?.slice(0, 2).toUpperCase() || '--')}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleAvatarUpload}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                  >
+                    {isUploadingAvatar ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="mr-2 h-4 w-4" />
+                    )}
+                    Upload new picture
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">JPG, PNG or GIF. 5MB max.</p>
+                </div>
+              </div>
+              <Separator />
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="company-name">Company Name</Label>
@@ -91,7 +162,7 @@ export default function SettingsPage() {
           <Card className="border-border shadow-sm">
             <CardHeader>
               <CardTitle className="text-base">Change Password</CardTitle>
-              <CardDescription>Password update will be enabled after the backend endpoint is connected</CardDescription>
+              <CardDescription>Update your account password</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
@@ -118,7 +189,10 @@ export default function SettingsPage() {
                 </div>
               ))}
               <div className="flex justify-end">
-                <Button onClick={handleSavePassword}>Update Password</Button>
+                <Button onClick={handleSavePassword} disabled={isUpdatingPassword}>
+                  {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Update Password
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -55,6 +55,7 @@ export default function SearchPage() {
       (r.description || '').toLowerCase().includes(q) ||
       (r.material || '').toLowerCase().includes(q) ||
       (r.biltyDate || '').toLowerCase().includes(q) ||
+      (r.privateMarka || '').toLowerCase().includes(q) ||
       String(r.amount || '').includes(q) ||
       String(r.charges || '').includes(q)
     ))

@@ -4,8 +4,7 @@ import { use, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { api, BackendReceipt } from '@/lib/api'
@@ -60,14 +59,6 @@ export default function ReceiptDetailPage({ params }: { params: Promise<{ id: st
     }
   }
 
-  const rawJson = (() => {
-    if (!receipt.extractedJson) return 'No extracted data'
-    try {
-      return JSON.stringify(JSON.parse(receipt.extractedJson), null, 2)
-    } catch {
-      return receipt.extractedJson
-    }
-  })()
 
   return (
     <div className="space-y-6">
@@ -128,57 +119,42 @@ export default function ReceiptDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Details panel */}
-        <div className="lg:col-span-2">
-          <Tabs defaultValue="data">
-            <TabsList className="w-full grid grid-cols-2 mb-4">
-              <TabsTrigger value="data" className="text-xs">Extracted Data</TabsTrigger>
-              <TabsTrigger value="raw" className="text-xs">Raw JSON</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="data">
-              <Card className="border-border shadow-sm">
-                <CardContent className="p-5 space-y-3">
-                  {[
-                    { label: 'GR Number', value: receipt.grNumber || '-' },
-                    { label: 'Consignor', value: receipt.consignor || '-' },
-                    { label: 'Consignee', value: receipt.consignee || '-' },
-                    { label: 'Packages', value: String(receipt.packages || 0) },
-                    { label: 'Material', value: receipt.material || receipt.description || '-' },
-                    { label: 'Charges', value: `₹${(receipt.charges ?? receipt.amount ?? 0).toLocaleString('en-IN')}`, mono: true },
-                    { label: 'Source', value: receipt.source || '-' },
-                    { label: 'Destination', value: receipt.destination || '-' },
-                    { label: 'Description', value: receipt.description || '-' },
-                    { label: 'Amount', value: `₹${(receipt.amount || 0).toLocaleString('en-IN')}`, mono: true },
-                    { label: 'Bilty Date', value: receipt.biltyDate || '-' },
-                    { label: 'Uploaded Date', value: receipt.uploadedAt ? new Date(receipt.uploadedAt).toLocaleDateString('en-IN') : '-' },
-                  ].map((f) => (
-                    <div key={f.label} className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-muted-foreground shrink-0 w-28">{f.label}</span>
-                      <span className={cn('text-xs font-medium text-foreground text-right', f.mono && 'font-mono')}>{f.value}</span>
-                    </div>
-                  ))}
-                  <div className="pt-2 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">AI Confidence</span>
-                      <span className="text-xs font-semibold text-primary">
-                        {receipt.confidenceOverall ? `${receipt.confidenceOverall}%` : 'Not provided'}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="raw">
-              <Card className="border-border shadow-sm">
-                <CardContent className="p-5">
-                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap overflow-x-auto max-h-[400px]">
-                    {rawJson}
-                  </pre>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Extracted Data</CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-3">
+              {[
+                { label: 'GR Number', value: receipt.grNumber || '-' },
+                { label: 'Private Marka', value: receipt.privateMarka || '-' },
+                { label: 'Consignor', value: receipt.consignor || '-' },
+                { label: 'Consignee', value: receipt.consignee || '-' },
+                { label: 'Packages', value: String(receipt.packages || 0) },
+                { label: 'Material', value: receipt.material || receipt.description || '-' },
+                { label: 'Charges', value: `₹${(receipt.charges ?? receipt.amount ?? 0).toLocaleString('en-IN')}`, mono: true },
+                { label: 'Source', value: receipt.source || '-' },
+                { label: 'Destination', value: receipt.destination || '-' },
+                { label: 'Description', value: receipt.description || '-' },
+                { label: 'Amount', value: `₹${(receipt.amount || 0).toLocaleString('en-IN')}`, mono: true },
+                { label: 'Bilty Date', value: receipt.biltyDate || '-' },
+                { label: 'Uploaded Date', value: receipt.uploadedAt ? new Date(receipt.uploadedAt).toLocaleDateString('en-IN') : '-' },
+              ].map((f) => (
+                <div key={f.label} className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-muted-foreground shrink-0 w-28">{f.label}</span>
+                  <span className={cn('text-xs font-medium text-foreground text-right', f.mono && 'font-mono')}>{f.value}</span>
+                </div>
+              ))}
+              <div className="pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">AI Confidence</span>
+                  <span className="text-xs font-semibold text-primary">
+                    {receipt.confidenceOverall ? `${receipt.confidenceOverall}%` : 'Not provided'}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -81,16 +81,16 @@ export default function SignupPage() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="fname">First name</Label>
-              <Input id="fname" name="fname" placeholder="Rajesh" required />
+              <Input id="fname" name="fname" placeholder="Enter your first name" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lname">Last name</Label>
-              <Input id="lname" name="lname" placeholder="Sharma" required />
+              <Input id="lname" name="lname" placeholder="Enter your last name" required />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="company">Company name</Label>
-            <Input id="company" name="company" placeholder="Punjab Cargo Services" required />
+            <Input id="company" name="company" placeholder="Enter your company name" required />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="email">Work email</Label>
@@ -99,7 +99,7 @@ export default function SignupPage() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="you@company.in"
+                placeholder="Enter your email"
                 required
                 value={email}
                 onChange={(e) => {
@@ -143,7 +143,7 @@ export default function SignupPage() {
                 id="password"
                 name="password"
                 type={showPw ? 'text' : 'password'}
-                placeholder="8+ characters"
+                placeholder="Enter your password"
                 required
                 minLength={8}
               />

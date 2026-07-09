@@ -20,6 +20,7 @@ public class UserEntity {
     private String email;
     private String passwordHash;
     private String role;
+    private String avatar;
     private boolean emailVerified;
     private String sessionToken;
     private LocalDateTime sessionExpiresAt;
@@ -45,6 +46,8 @@ public class UserEntity {
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+    public String getAvatar() { return avatar; }
+    public void setAvatar(String avatar) { this.avatar = avatar; }
     public boolean isEmailVerified() { return emailVerified; }
     public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
     public String getSessionToken() { return sessionToken; }

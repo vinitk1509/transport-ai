@@ -110,7 +110,7 @@ public class ExcelGeneratorService {
             String[] headers = {
                     "GR/LR No.", "Bilty Date", "Uploaded At", "Processed At",
                     "Consignor", "Consignee", "From", "To", "Packages", "Material",
-                    "Charges", "Original File"
+                    "Charges", "Private Marka (P.M.)", "Original File"
             };
 
             Row headerRow = sheet.createRow(0);
@@ -134,7 +134,8 @@ public class ExcelGeneratorService {
                 row.createCell(8).setCellValue(receipt.getPackages());
                 row.createCell(9).setCellValue(text(receipt.getMaterial()));
                 row.createCell(10).setCellValue(receipt.getCharges() != 0 ? receipt.getCharges() : receipt.getAmount());
-                row.createCell(11).setCellValue(text(receipt.getOriginalFilename()));
+                row.createCell(11).setCellValue(text(receipt.getPrivateMarka()));
+                row.createCell(12).setCellValue(text(receipt.getOriginalFilename()));
             }
 
             for (int i = 0; i < headers.length; i++) {

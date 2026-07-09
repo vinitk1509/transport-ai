@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth, usePermission } from '@/lib/auth-context'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 const navItems = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -27,7 +28,6 @@ const navItems = [
 
     ],
   },
-  { label: 'Notifications', href: '/notifications', icon: Bell },
   { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
 ]
 
@@ -133,9 +133,14 @@ export function AppSidebar() {
       <div className="border-t border-sidebar-border p-3 space-y-2">
         {!collapsed && (
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
-              {user?.avatar || user?.name?.slice(0, 2).toUpperCase() || '--'}
-            </div>
+            <Avatar className="w-8 h-8 shrink-0 border bg-primary">
+              {user?.avatar?.includes('/') ? (
+                <AvatarImage src={`http://localhost:8080${user.avatar}`} alt={user.name} />
+              ) : null}
+              <AvatarFallback className="text-xs font-bold bg-primary text-primary-foreground">
+                {user?.avatar && !user.avatar.includes('/') ? user.avatar : (user?.name?.slice(0, 2).toUpperCase() || '--')}
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-sidebar-foreground truncate">{user?.name || 'No name set'}</p>
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 mt-0.5 bg-sidebar-accent text-sidebar-foreground/70 border-0">

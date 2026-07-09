@@ -21,6 +21,7 @@ const initialForm = {
   material: '',
   description: '',
   charges: '',
+  privateMarka: '',
 }
 
 export default function ManualReceiptPage() {
@@ -47,6 +48,7 @@ export default function ManualReceiptPage() {
         description: form.description.trim() || form.material.trim(),
         charges: Number(form.charges || 0),
         amount: Number(form.charges || 0),
+        privateMarka: form.privateMarka.trim(),
         rejectionReason: '',
       })
       toast.success('Manual bilty saved')
@@ -80,6 +82,7 @@ export default function ManualReceiptPage() {
             <Field label="Destination" value={form.destination} onChange={(value) => setField('destination', value)} />
             <Field label="Packages" type="number" value={form.packages} onChange={(value) => setField('packages', value)} />
             <Field label="Charges" type="number" value={form.charges} onChange={(value) => setField('charges', value)} />
+            <Field label="Private Marka" value={form.privateMarka} onChange={(value) => setField('privateMarka', value)} />
             <Field label="Material" value={form.material} onChange={(value) => setField('material', value)} />
             <Field label="Description" value={form.description} onChange={(value) => setField('description', value)} />
           </div>

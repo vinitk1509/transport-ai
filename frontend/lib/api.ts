@@ -42,6 +42,7 @@ export interface BackendReceipt {
   storedFilename?: string;
   contentType?: string;
   rejectionReason?: string;
+  privateMarka?: string;
 }
 
 export const api = {
@@ -96,6 +97,31 @@ export const api = {
       method: 'POST',
       headers: authHeaders(),
     });
+  },
+
+  async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/auth/me/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) throw new Error(await responseMessage(res, 'Failed to update password'));
+  },
+
+  async updateAvatar(file: File): Promise<AuthUser> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData,
+    });
+    if (!res.ok) throw new Error(await responseMessage(res, 'Failed to update avatar'));
+    const data = await res.json();
+    return data;
   },
 
   async getReceipts(): Promise<BackendReceipt[]> {

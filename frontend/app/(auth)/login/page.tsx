@@ -14,8 +14,8 @@ import { toast } from 'sonner'
 export default function LoginPage() {
   const { login } = useAuth()
   const router = useRouter()
-  const [email, setEmail] = useState('rajesh@transport.co')
-  const [password, setPassword] = useState('password')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -48,7 +48,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.in"
+              placeholder="Enter your email"
               required
               autoFocus
             />
@@ -66,7 +66,7 @@ export default function LoginPage() {
                 type={showPw ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 required
               />
               <button
@@ -85,11 +85,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
-          <p className="text-xs text-muted-foreground text-center">
-            Demo: <span className="font-mono text-foreground">rajesh@transport.co</span> / any password
-          </p>
-        </div>
+
 
         <p className="text-center text-sm text-muted-foreground mt-5">
           {"Don't have an account? "}

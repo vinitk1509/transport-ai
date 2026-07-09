@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Bell, Search, LogOut, Settings, User, ChevronDown } from 'lucide-react'
+import { Search, LogOut, Settings, User, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,13 +10,12 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/auth-context'
-import { NotificationPanel } from '@/components/layout/NotificationPanel'
 import { useRouter } from 'next/navigation'
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 
 export function AppTopNav() {
   const { user, logout } = useAuth()
   const router = useRouter()
-  const [notifOpen, setNotifOpen] = useState(false)
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -39,21 +38,19 @@ export function AppTopNav() {
         </form>
 
         <div className="flex items-center gap-2 ml-auto">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-8 w-8"
-            onClick={() => setNotifOpen(true)}
-          >
-            <Bell className="w-4 h-4" />
-          </Button>
+
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-2 h-8 px-2">
-                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground">
-                  {user?.avatar || user?.name?.slice(0, 2).toUpperCase() || '--'}
-                </div>
+                <Avatar className="w-6 h-6 border bg-primary">
+                  {user?.avatar?.includes('/') ? (
+                    <AvatarImage src={`http://localhost:8080${user.avatar}`} alt={user.name} />
+                  ) : null}
+                  <AvatarFallback className="text-[10px] font-bold bg-primary text-primary-foreground">
+                    {user?.avatar && !user.avatar.includes('/') ? user.avatar : (user?.name?.slice(0, 2).toUpperCase() || '--')}
+                  </AvatarFallback>
+                </Avatar>
                 <span className="hidden sm:inline text-sm">{user?.name?.split(' ')[0]}</span>
                 <ChevronDown className="w-3 h-3 text-muted-foreground" />
               </Button>
@@ -86,7 +83,7 @@ export function AppTopNav() {
         </div>
       </header>
 
-      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+
     </>
   )
 }

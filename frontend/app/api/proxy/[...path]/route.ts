@@ -1,0 +1,56 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+
+export async function middleware(req: NextRequest) {
+  const method = req.method;
+  
+  // Create the exact backend path, by stripping '/api/proxy'
+  const path = req.nextUrl.pathname.replace(/^\/api\/proxy/, '');
+  const searchParams = req.nextUrl.search;
+  
+  const targetUrl = `${BACKEND_URL}${path}${searchParams}`;
+
+  const headers = new Headers(req.headers);
+  headers.delete('host');
+  headers.delete('cookie');
+  headers.delete('connection');
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get('transportai_token')?.value;
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  try {
+    const requestOptions: RequestInit & { duplex?: 'half' } = {
+      method,
+      headers,
+      redirect: 'manual',
+      // only include body for methods that allow it
+      body: (method !== 'GET' && method !== 'HEAD') ? req.body : undefined,
+      duplex: 'half',
+    };
+
+    const res = await fetch(targetUrl, requestOptions);
+
+    const responseHeaders = new Headers(res.headers);
+    responseHeaders.delete('content-encoding');
+
+    return new NextResponse(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    console.error('Proxy error:', error);
+    return new NextResponse(JSON.stringify({ error: 'Proxy Request Failed' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// Next.js Route Handlers require explicitly exporting allowed methods
+export { middleware as GET, middleware as POST, middleware as PUT, middleware as DELETE, middleware as PATCH, middleware as OPTIONS };

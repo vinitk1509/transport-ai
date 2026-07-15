@@ -48,8 +48,24 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveCompany = () => {
-    toast.info('Profile update API is not connected yet.')
+  const [isUpdatingCompany, setIsUpdatingCompany] = useState(false)
+
+  const handleSaveCompany = async () => {
+    if (!company.name.trim()) {
+      toast.error('Company name is required')
+      return
+    }
+    
+    setIsUpdatingCompany(true)
+    try {
+      await api.updateProfile({ company: company.name.trim() })
+      await refreshUser()
+      toast.success('Company profile updated successfully')
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to update company profile')
+    } finally {
+      setIsUpdatingCompany(false)
+    }
   }
 
   const handleSavePassword = async () => {
@@ -101,7 +117,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-6 pb-2">
                 <Avatar className="w-20 h-20 border bg-primary">
                   {user?.avatar?.includes('/') ? (
-                    <AvatarImage src={`http://localhost:8080${user.avatar}`} alt={user.name} />
+                    <AvatarImage src={user.avatar.replace('/api/v1', '/api/proxy')} alt={user.name} />
                   ) : null}
                   <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
                     {user?.avatar && !user.avatar.includes('/') ? user.avatar : (user?.name?.slice(0, 2).toUpperCase() || '--')}
@@ -145,13 +161,10 @@ export default function SettingsPage() {
 
               <Separator />
 
-              <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-                Profile persistence is not connected yet. Changes here are intentionally not faked as saved server data.
-              </div>
-
               <div className="flex justify-end">
-                <Button onClick={handleSaveCompany}>
-                  <Save className="w-4 h-4 mr-2" />Save Changes
+                <Button onClick={handleSaveCompany} disabled={isUpdatingCompany}>
+                  {isUpdatingCompany && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Save className={isUpdatingCompany ? "hidden" : "w-4 h-4 mr-2"} />Save Changes
                 </Button>
               </div>
             </CardContent>

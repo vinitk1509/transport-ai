@@ -18,6 +18,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.scheduling.annotation.Async;
+import java.util.concurrent.CompletableFuture;
+
 @Service
 public class ExtractionService {
 
@@ -26,7 +29,8 @@ public class ExtractionService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public ReceiptData extractDataFromImage(File imageFile) {
+    @Async
+    public CompletableFuture<ReceiptData> extractDataFromImage(File imageFile) {
         try {
             if (apiKey == null || apiKey.isBlank()) {
                 throw new RuntimeException("Gemini API key is not configured.");
@@ -107,8 +111,10 @@ public class ExtractionService {
             if (!looksLikeBilty(receiptData)) {
                 throw new NonBiltyDocumentException("Uploaded image does not contain required bilty fields.");
             }
-            return receiptData;
+            return CompletableFuture.completedFuture(receiptData);
 
+        } catch (NonBiltyDocumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Error extracting data via Gemini API", e);
         }

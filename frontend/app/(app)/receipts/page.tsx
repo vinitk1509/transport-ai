@@ -25,63 +25,42 @@ const PAGE_SIZE = 25
 export default function ReceiptsPage() {
   const { canDelete, canExport } = usePermission()
   const [search, setSearch] = useState('')
-  const [source, setSource] = useState('all')
+  const [source, setSource] = useState('')
   const [dateFilter, setDateFilter] = useState('')
   const [page, setPage] = useState(1)
   const [receipts, setReceipts] = useState<BackendReceipt[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalElements, setTotalElements] = useState(0)
 
+  // Fetch paginated receipts
   useEffect(() => {
-    api.getReceipts().then(data => {
-      setReceipts(data)
-      setLoading(false)
-    }).catch(() => {
-      toast.error('Failed to load receipts')
-      setLoading(false)
-    })
-  }, [])
+    setLoading(true)
+    api.getPaginatedReceipts(page - 1, PAGE_SIZE, { search, source, dateFilter })
+      .then(data => {
+        setReceipts(data.content)
+        setTotalPages(data.totalPages)
+        setTotalElements(data.totalElements)
+      })
+      .catch(() => toast.error('Failed to load receipts'))
+      .finally(() => setLoading(false))
+  }, [page, search, source, dateFilter])
 
-  const sources = useMemo(() => {
-    const s = new Set(receipts.map((r) => r.source).filter(Boolean))
-    return ['all', ...Array.from(s)]
-  }, [receipts])
-
-  const filtered = useMemo(() => {
-    return receipts.filter((r) => {
-      if (source !== 'all' && r.source !== source) return false
-      if (dateFilter && (r.biltyDate || r.uploadedAt)?.slice(0, 10) !== dateFilter) return false
-      if (search) {
-        const q = search.toLowerCase()
-        return (
-          (r.id || '').toLowerCase().includes(q) ||
-          (r.grNumber || '').toLowerCase().includes(q) ||
-          (r.consignor || '').toLowerCase().includes(q) ||
-          (r.consignee || '').toLowerCase().includes(q) ||
-          (r.source || '').toLowerCase().includes(q) ||
-          (r.destination || '').toLowerCase().includes(q) ||
-          (r.privateMarka || '').toLowerCase().includes(q)
-        )
-      }
-      return true
-    })
-  }, [search, source, dateFilter, receipts])
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [search, source, dateFilter])
 
   const toggleSelect = (id: string) => {
     const s = new Set(selected)
-    if (s.has(id)) {
-      s.delete(id)
-    } else {
-      s.add(id)
-    }
+    if (s.has(id)) s.delete(id)
+    else s.add(id)
     setSelected(s)
   }
   const toggleAll = () => {
-    if (selected.size === paged.length) setSelected(new Set())
-    else setSelected(new Set(paged.map((r) => r.id)))
+    if (selected.size === receipts.length) setSelected(new Set())
+    else setSelected(new Set(receipts.map((r) => r.id)))
   }
   const selectedIds = Array.from(selected)
 
@@ -130,7 +109,7 @@ export default function ReceiptsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">All Receipts</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">{receipts.length} total receipts</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{totalElements} total receipts</p>
           </div>
           <Button size="sm" render={<Link href="/receipts/upload" />}>
             <Upload className="w-4 h-4 mr-2" />Upload
@@ -145,26 +124,22 @@ export default function ReceiptsPage() {
               placeholder="Search ID, GR no., consignor, route..."
               className="pl-8 h-8 text-sm"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select value={source} onValueChange={(v) => { if (v) { setSource(v); setPage(1) } }}>
-            <SelectTrigger className="h-8 w-40 text-sm">
-              <SelectValue placeholder="Source city" />
-            </SelectTrigger>
-            <SelectContent>
-              {sources.map((s) => (
-                <SelectItem key={s} value={s}>{s === 'all' ? 'All Cities' : s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Input
+            placeholder="Source city"
+            className="h-8 w-40 text-sm"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          />
           <input
             type="date"
             value={dateFilter}
-            onChange={(e) => { setDateFilter(e.target.value); setPage(1) }}
+            onChange={(e) => setDateFilter(e.target.value)}
             className="h-8 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <span className="text-xs text-muted-foreground ml-auto">{filtered.length} results</span>
+          <span className="text-xs text-muted-foreground ml-auto">{totalElements} results</span>
         </div>
 
         {/* Bulk actions */}
@@ -187,7 +162,7 @@ export default function ReceiptsPage() {
         )}
 
         {/* Table */}
-        {filtered.length === 0 ? (
+        {receipts.length === 0 && !loading ? (
           <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl">
             <FileX className="w-10 h-10 text-muted-foreground/40 mb-3" />
             <p className="font-medium text-foreground">No receipts found</p>
@@ -202,7 +177,7 @@ export default function ReceiptsPage() {
                   <tr className="border-b border-border bg-muted/30">
                     <th className="px-4 py-3 text-left w-10">
                       <Checkbox
-                        checked={paged.length > 0 && selected.size === paged.length}
+                        checked={receipts.length > 0 && selected.size === receipts.length}
                         onCheckedChange={toggleAll}
                         aria-label="Select all"
                       />
@@ -219,7 +194,7 @@ export default function ReceiptsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {paged.map((r) => (
+                  {receipts.map((r) => (
                     <ReceiptRow
                       key={r.id}
                       receipt={r}

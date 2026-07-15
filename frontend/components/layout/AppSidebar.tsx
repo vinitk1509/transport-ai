@@ -135,7 +135,7 @@ export function AppSidebar() {
           <div className="flex items-center gap-3 px-2 py-1">
             <Avatar className="w-8 h-8 shrink-0 border bg-primary">
               {user?.avatar?.includes('/') ? (
-                <AvatarImage src={`http://localhost:8080${user.avatar}`} alt={user.name} />
+                <AvatarImage src={user.avatar.replace('/api/v1', '/api/proxy')} alt={user.name} />
               ) : null}
               <AvatarFallback className="text-xs font-bold bg-primary text-primary-foreground">
                 {user?.avatar && !user.avatar.includes('/') ? user.avatar : (user?.name?.slice(0, 2).toUpperCase() || '--')}

@@ -45,7 +45,7 @@ export function AppTopNav() {
               <Button variant="ghost" size="sm" className="gap-2 h-8 px-2">
                 <Avatar className="w-6 h-6 border bg-primary">
                   {user?.avatar?.includes('/') ? (
-                    <AvatarImage src={`http://localhost:8080${user.avatar}`} alt={user.name} />
+                    <AvatarImage src={user.avatar.replace('/api/v1', '/api/proxy')} alt={user.name} />
                   ) : null}
                   <AvatarFallback className="text-[10px] font-bold bg-primary text-primary-foreground">
                     {user?.avatar && !user.avatar.includes('/') ? user.avatar : (user?.name?.slice(0, 2).toUpperCase() || '--')}

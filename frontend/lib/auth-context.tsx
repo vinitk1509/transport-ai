@@ -27,34 +27,29 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(() => typeof window !== 'undefined' && !!window.localStorage.getItem('transportai_token'))
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = window.localStorage.getItem('transportai_token')
-    if (!token) {
-      return
-    }
+    // Rely on HTTP-Only cookie, so we unconditionally try to fetch the user
+    // on initial load to verify if they have an active session.
     api.me()
       .then(setUser)
-      .catch(() => window.localStorage.removeItem('transportai_token'))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])
 
   const login = async (email: string, password: string) => {
     const response = await api.login(email, password)
-    window.localStorage.setItem('transportai_token', response.token)
     setUser(response.user)
   }
 
   const signup = async (data: { firstName: string; lastName: string; company: string; email: string; password: string; code: string }) => {
     const response = await api.signup(data)
-    window.localStorage.setItem('transportai_token', response.token)
     setUser(response.user)
   }
 
   const logout = () => {
     api.logout().catch(() => {})
-    window.localStorage.removeItem('transportai_token')
     setUser(null)
   }
 

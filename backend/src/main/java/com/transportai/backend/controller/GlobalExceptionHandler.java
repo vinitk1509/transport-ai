@@ -17,6 +17,21 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage() != null ? ex.getMessage() : "Unauthorized."));
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidationException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getAllErrors().stream()
+                .map(org.springframework.validation.ObjectError::getDefaultMessage)
+                .findFirst().orElse("Invalid request data");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", message));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityViolationException(org.springframework.dao.DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "Database error: A constraint was violated (e.g., email already exists)."));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

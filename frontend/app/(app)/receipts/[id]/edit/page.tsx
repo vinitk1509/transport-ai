@@ -116,7 +116,7 @@ export default function EditReceiptPage() {
           <CardContent className="flex-1 min-h-[400px] relative bg-muted/20 flex items-center justify-center p-0 overflow-hidden">
             {receipt?.storedFilename ? (
               <img 
-                src={`http://localhost:8080/api/v1/uploads/${receipt.storedFilename}`} 
+                src={api.receiptFileUrl(id)} 
                 alt="Bilty image" 
                 className="w-full h-full object-contain"
               />

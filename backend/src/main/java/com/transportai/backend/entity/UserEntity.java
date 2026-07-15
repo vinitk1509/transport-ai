@@ -1,5 +1,6 @@
 package com.transportai.backend.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
@@ -17,7 +18,9 @@ public class UserEntity {
     private String firstName;
     private String lastName;
     private String company;
+    @Column(nullable = false, unique = true)
     private String email;
+    @Column(nullable = false)
     private String passwordHash;
     private String role;
     private String avatar;

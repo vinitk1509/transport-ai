@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+const PROXY_URL = '/api/proxy';
+const AUTH_URL = '/api/auth';
 
 export interface AuthUser {
   id: string;
@@ -10,14 +11,8 @@ export interface AuthUser {
 }
 
 export interface AuthResponse {
-  token: string;
+  token?: string; // no longer heavily used on client since cookie handles it
   user: AuthUser;
-}
-
-function authHeaders(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  const token = window.localStorage.getItem('transportai_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export interface BackendReceipt {
@@ -47,7 +42,7 @@ export interface BackendReceipt {
 
 export const api = {
   async requestVerification(email: string): Promise<{ message: string }> {
-    const res = await fetch(`${API_BASE_URL}/auth/verification/request`, {
+    const res = await fetch(`${PROXY_URL}/auth/verification/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -64,7 +59,7 @@ export const api = {
     password: string;
     code: string;
   }): Promise<AuthResponse> {
-    const res = await fetch(`${API_BASE_URL}/auth/signup`, {
+    const res = await fetch(`${AUTH_URL}/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -74,18 +69,17 @@ export const api = {
   },
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+    const res = await fetch(`${AUTH_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    if (!res.ok) throw new Error('Invalid credentials');
+    if (!res.ok) throw new Error(await responseMessage(res, 'Invalid credentials'));
     return res.json();
   },
 
   async me(): Promise<AuthUser> {
-    const res = await fetch(`${API_BASE_URL}/auth/me`, {
-      headers: authHeaders(),
+    const res = await fetch(`${AUTH_URL}/me`, {
       cache: 'no-store',
     });
     if (!res.ok) throw new Error('Unauthorized');
@@ -93,30 +87,37 @@ export const api = {
   },
 
   async logout(): Promise<void> {
-    await fetch(`${API_BASE_URL}/auth/logout`, {
+    await fetch(`${AUTH_URL}/logout`, {
       method: 'POST',
-      headers: authHeaders(),
     });
   },
 
   async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/auth/me/password`, {
+    const res = await fetch(`${PROXY_URL}/auth/me/password`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders(),
       },
       body: JSON.stringify({ currentPassword, newPassword }),
     });
     if (!res.ok) throw new Error(await responseMessage(res, 'Failed to update password'));
   },
 
+  async updateProfile(data: { company?: string; firstName?: string; lastName?: string }): Promise<AuthUser> {
+    const res = await fetch(`${PROXY_URL}/auth/me/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await responseMessage(res, 'Failed to update profile'));
+    return res.json();
+  },
+
   async updateAvatar(file: File): Promise<AuthUser> {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`${API_BASE_URL}/auth/me/avatar`, {
+    const res = await fetch(`${PROXY_URL}/auth/me/avatar`, {
       method: 'POST',
-      headers: authHeaders(),
       body: formData,
     });
     if (!res.ok) throw new Error(await responseMessage(res, 'Failed to update avatar'));
@@ -125,17 +126,38 @@ export const api = {
   },
 
   async getReceipts(): Promise<BackendReceipt[]> {
-    const res = await fetch(`${API_BASE_URL}/receipts`, {
-      headers: { 'X-Transporter-ID': '1', ...authHeaders() },
+    const res = await fetch(`${PROXY_URL}/receipts?size=0`, {
+      headers: { 'X-Transporter-ID': '1' },
       cache: 'no-store'
     });
     if (!res.ok) throw new Error('Failed to fetch receipts');
     return res.json();
   },
 
+  async getPaginatedReceipts(
+    page: number, 
+    size: number = 20, 
+    filters?: { search?: string, source?: string, dateFilter?: string }
+  ): Promise<{ content: BackendReceipt[]; totalElements: number; totalPages: number }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString(),
+    });
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.source && filters.source !== 'all') params.append('source', filters.source);
+    if (filters?.dateFilter) params.append('dateFilter', filters.dateFilter);
+    
+    const res = await fetch(`${PROXY_URL}/receipts?${params.toString()}`, {
+      headers: { 'X-Transporter-ID': '1' },
+      cache: 'no-store'
+    });
+    if (!res.ok) throw new Error('Failed to fetch paginated receipts');
+    return res.json();
+  },
+
   async getReceipt(id: string): Promise<BackendReceipt> {
-    const res = await fetch(`${API_BASE_URL}/receipts/${id}`, {
-      headers: { 'X-Transporter-ID': '1', ...authHeaders() },
+    const res = await fetch(`${PROXY_URL}/receipts/${id}`, {
+      headers: { 'X-Transporter-ID': '1' },
       cache: 'no-store'
     });
     if (!res.ok) throw new Error('Failed to fetch receipt');
@@ -146,9 +168,9 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const res = await fetch(`${API_BASE_URL}/receipts/upload`, {
+    const res = await fetch(`${PROXY_URL}/receipts/upload`, {
       method: 'POST',
-      headers: { 'X-Transporter-ID': '1', ...authHeaders() },
+      headers: { 'X-Transporter-ID': '1' },
       body: formData,
     });
     
@@ -160,9 +182,9 @@ export const api = {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
 
-    const res = await fetch(`${API_BASE_URL}/receipts/upload/batch`, {
+    const res = await fetch(`${PROXY_URL}/receipts/upload/batch`, {
       method: 'POST',
-      headers: { 'X-Transporter-ID': '1', ...authHeaders() },
+      headers: { 'X-Transporter-ID': '1' },
       body: formData,
     });
 
@@ -171,11 +193,10 @@ export const api = {
   },
 
   async createManualReceipt(data: Partial<BackendReceipt>): Promise<BackendReceipt> {
-    const res = await fetch(`${API_BASE_URL}/receipts/manual`, {
+    const res = await fetch(`${PROXY_URL}/receipts/manual`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders(),
       },
       body: JSON.stringify(data),
     });
@@ -184,12 +205,11 @@ export const api = {
   },
 
   async updateReceipt(id: string, data: Partial<BackendReceipt>): Promise<BackendReceipt> {
-    const res = await fetch(`${API_BASE_URL}/receipts/${id}`, {
+    const res = await fetch(`${PROXY_URL}/receipts/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'X-Transporter-ID': '1',
-        ...authHeaders()
       },
       body: JSON.stringify(data)
     });
@@ -198,22 +218,20 @@ export const api = {
   },
 
   async exportReceipt(extractedJsonString: string): Promise<Blob> {
-    const res = await fetch(`${API_BASE_URL}/receipts/export`, {
+    const res = await fetch(`${PROXY_URL}/receipts/export`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Transporter-ID': '1',
-        ...authHeaders()
       },
-      body: extractedJsonString // Pass the raw extracted JSON string
+      body: extractedJsonString
     });
     if (!res.ok) throw new Error('Failed to export');
     return res.blob();
   },
 
   async exportReceiptById(id: string): Promise<Blob> {
-    const res = await fetch(`${API_BASE_URL}/receipts/${id}/export`, {
-      headers: { ...authHeaders() },
+    const res = await fetch(`${PROXY_URL}/receipts/${id}/export`, {
       cache: 'no-store',
     });
     if (!res.ok) throw new Error('Failed to export');
@@ -221,11 +239,10 @@ export const api = {
   },
 
   async exportReceiptsBulk(ids: string[]): Promise<Blob> {
-    const res = await fetch(`${API_BASE_URL}/receipts/export/bulk`, {
+    const res = await fetch(`${PROXY_URL}/receipts/export/bulk`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders(),
       },
       body: JSON.stringify({ ids }),
     });
@@ -234,8 +251,7 @@ export const api = {
   },
 
   async exportAllReceipts(): Promise<Blob> {
-    const res = await fetch(`${API_BASE_URL}/receipts/export/all`, {
-      headers: { ...authHeaders() },
+    const res = await fetch(`${PROXY_URL}/receipts/export/all`, {
       cache: 'no-store',
     });
     if (!res.ok) throw new Error('Failed to export all bilties');
@@ -243,19 +259,17 @@ export const api = {
   },
 
   async deleteReceipt(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/receipts/${id}`, {
+    const res = await fetch(`${PROXY_URL}/receipts/${id}`, {
       method: 'DELETE',
-      headers: { ...authHeaders() },
     });
     if (!res.ok) throw new Error('Failed to delete receipt');
   },
 
   async deleteReceipts(ids: string[]): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/receipts/delete-bulk`, {
+    const res = await fetch(`${PROXY_URL}/receipts/delete-bulk`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...authHeaders(),
       },
       body: JSON.stringify({ ids }),
     });
@@ -263,8 +277,7 @@ export const api = {
   },
 
   receiptFileUrl(id: string): string {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('transportai_token') : '';
-    return `${API_BASE_URL}/receipts/${id}/file?token=${encodeURIComponent(token || '')}`;
+    return `/api/proxy/receipts/${id}/file`;
   }
 };
 

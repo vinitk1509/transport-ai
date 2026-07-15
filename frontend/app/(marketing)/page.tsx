@@ -1,177 +1,340 @@
+'use client'
+
 import Link from 'next/link'
-import { ArrowRight, CheckCircle, Cloud, Search, BarChart3, Users, FileSpreadsheet, ShieldCheck, ChevronDown, Star, Zap } from 'lucide-react'
+import {
+  ArrowRight,
+  Camera,
+  Search,
+  FileSpreadsheet,
+  BarChart3,
+  Users,
+  Cloud,
+  ChevronDown,
+  Star,
+  CheckCircle,
+  Play,
+  ScanLine,
+  ShieldCheck,
+  Phone,
+} from 'lucide-react'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+
+/* ─── animation helpers ─── */
+const fadeUp = {
+  hidden: { opacity: 0, y: 32 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+}
+
+const stagger = {
+  visible: { transition: { staggerChildren: 0.12 } },
+}
+
+/* ─── data ─── */
+const stats = [
+  { value: '12,000+', label: 'bilties processed' },
+  { value: '180+', label: 'transport companies' },
+  { value: '98.7%', label: 'read accuracy' },
+  { value: '< 4 sec', label: 'per receipt' },
+]
 
 const features = [
   {
-    icon: Zap,
-    title: 'AI Receipt Extraction',
-    desc: 'Our AI reads handwritten and printed receipts instantly, extracting consignor, consignee, amount, and route data with up to 99% accuracy.',
+    icon: ScanLine,
+    title: 'Receipt Extraction',
+    desc: 'Upload a photo of any bilty — printed or handwritten, Hindi or English — and watch it turn into structured data. GR number, consignor, consignee, origin, destination, freight charges. All pulled out automatically.',
+    large: true,
+    preview: true,
   },
   {
     icon: Search,
     title: 'Smart Search',
-    desc: 'Find any receipt in seconds. Search by consignor name, city, date range, or amount — across thousands of records.',
+    desc: 'Find any receipt from the last 3 years by typing a name, city, date range, or amount. Results in under a second.',
+    large: false,
+    preview: false,
   },
   {
     icon: FileSpreadsheet,
-    title: 'Excel & PDF Export',
-    desc: 'Export filtered data to Excel, CSV, or PDF with one click. Perfectly formatted for your accountant or auditor.',
+    title: 'Export Tools',
+    desc: 'One-click Excel, CSV, and PDF exports. Filters carry over so your CA gets exactly what they asked for.',
+    large: false,
+    preview: false,
   },
   {
     icon: BarChart3,
     title: 'Analytics Dashboard',
-    desc: 'Visual insights into upload trends, revenue by route, top consignors, and monthly comparisons.',
+    desc: 'Revenue by route, top consignors, monthly upload trends, average freight per destination. Real numbers, not vanity metrics. Exportable charts your management team will actually read.',
+    large: true,
+    preview: true,
   },
   {
     icon: Users,
-    title: 'Multi-User Access',
-    desc: 'Admin, Manager, and Operator roles with granular permissions. Your team, your rules.',
+    title: 'Team Roles',
+    desc: 'Admin, Manager, and Operator roles with proper permissions. Operators upload, managers review, admins see everything.',
+    large: false,
+    preview: false,
   },
   {
     icon: Cloud,
-    title: 'Secure Cloud Storage',
-    desc: 'All receipts are stored securely in the cloud with AES-256 encryption, accessible from any device.',
+    title: 'Cloud Storage',
+    desc: 'Every receipt stored with AES-256 encryption. Access them from any device, anywhere. No more lost papers.',
+    large: false,
+    preview: false,
   },
 ]
 
-const steps = [
-  { num: '01', title: 'Upload a Receipt', desc: 'Drag & drop, take a photo on mobile, or bulk-upload multiple files at once.' },
-  { num: '02', title: 'AI Extracts Data', desc: 'Our model reads the receipt and fills in consignor, consignee, route, amount, and more.' },
-  { num: '03', title: 'Review & Approve', desc: 'Check AI-extracted fields with confidence scores. Edit if needed, then approve in one click.' },
-  { num: '04', title: 'Search & Export', desc: 'Your data is instantly searchable and exportable for accounting, audits, and analytics.' },
+const timelineSteps = [
+  {
+    num: '01',
+    title: 'Snap or upload',
+    desc: 'Take a photo on your phone or drag files from your desktop. We handle JPG, PNG, and even slightly crumpled ones.',
+  },
+  {
+    num: '02',
+    title: 'AI reads the receipt',
+    desc: 'Our model was trained specifically on Indian bilties — handwritten Hindi, Punjabi, English. It picks out every field.',
+  },
+  {
+    num: '03',
+    title: 'You verify',
+    desc: 'Each field shows a confidence score. Green means the AI is sure. Amber means you should double-check. Takes 10 seconds.',
+  },
+  {
+    num: '04',
+    title: 'Done. Search it, export it, forget about it.',
+    desc: 'Your receipt lives in the cloud now. Pull it up anytime by consignor, city, date, or amount.',
+  },
 ]
 
-const testimonials = [
-  {
+const testimonials = {
+  featured: {
     name: 'Harpreet Singh',
-    role: 'Owner, Punjab Cargo Services',
-    text: 'We used to spend 3 hours daily entering receipts. TransportAI cut that to 20 minutes. The AI accuracy is genuinely impressive for handwritten Punjabi receipts.',
+    initials: 'HS',
+    role: 'Owner at Sarhad Transport, Amritsar',
+    text: 'We were burning 3 hours daily on data entry. Now my operator uploads photos during chai break and everything\u2019s in the system before lunch. The handwriting recognition is surprisingly good — even my driver\u2019s scribbles.',
     rating: 5,
+    color: 'bg-indigo-600',
+  },
+  right: [
+    {
+      name: 'Meena Patel',
+      initials: 'MP',
+      role: 'Finance Head at Delhivery Partners',
+      text: 'I can pull any bilty from the last 18 months in under 5 seconds. Our CA actually smiled during the last audit.',
+      rating: 5,
+      color: 'bg-emerald-600',
+    },
+    {
+      name: 'Ranjit Dhaliwal',
+      initials: 'RD',
+      role: 'Director, Ludhiana Cargo Co.',
+      text: 'Rolled it out to 8 operators across 3 branches. The permission system means I sleep easy.',
+      rating: 5,
+      color: 'bg-amber-600',
+    },
+  ],
+}
+
+const plans = [
+  {
+    name: 'Starter',
+    price: '₹999',
+    period: '/mo',
+    bullets: ['Up to 500 receipts/month', '2 team members', 'Excel & CSV export'],
+    highlight: false,
+    cta: 'Start free trial',
   },
   {
-    name: 'Meena Agarwal',
-    role: 'Finance Manager, Delhi Freight Co',
-    text: "The search and export features alone are worth it. I can pull any receipt from the past two years in seconds. Our CA loves the audit trail.",
-    rating: 5,
+    name: 'Professional',
+    price: '₹2,999',
+    period: '/mo',
+    bullets: ['Up to 5,000 receipts/month', '10 team members', 'Analytics dashboard + PDF export'],
+    highlight: true,
+    cta: 'Start free trial',
   },
   {
-    name: 'Ranjit Dhaliwal',
-    role: 'Director, Ludhiana Logistics Ltd',
-    text: 'Rolled out to 8 operators in a week. The role permissions mean I can trust the team with data entry without worrying about deletions.',
-    rating: 5,
+    name: 'Enterprise',
+    price: 'Custom',
+    period: '',
+    bullets: ['Unlimited receipts', 'Unlimited users', 'Dedicated onboarding & API access'],
+    highlight: false,
+    cta: 'Talk to us',
   },
 ]
 
 const faqs = [
-  { q: 'Does it work with handwritten receipts?', a: 'Yes. Our AI model is specifically trained on Indian transport receipts, including handwritten Punjabi, Hindi, and English text.' },
-  { q: 'How secure is my data?', a: 'All data is encrypted at rest (AES-256) and in transit (TLS 1.3). We are hosted on Indian cloud infrastructure.' },
-  { q: 'Can I import my existing data?', a: 'Yes. We support bulk import via CSV and can help migrate from Excel or other systems during onboarding.' },
-  { q: 'What happens if the AI makes a mistake?', a: 'Every extracted field shows a confidence score. Low-confidence fields are highlighted for manual review before approval.' },
-  { q: 'Do I need to install anything?', a: 'No. TransportAI is fully web-based. It works on any browser and has a mobile-optimised view for on-the-go uploads.' },
+  {
+    q: 'Does it work with handwritten receipts?',
+    a: 'Yes. Our model was trained on thousands of real Indian transport receipts — handwritten Punjabi, Hindi, and English. It handles messy handwriting, faded ink, and even slightly torn forms. Where it\u2019s unsure, it flags the field for you to review.',
+  },
+  {
+    q: 'How accurate is the extraction?',
+    a: 'Across our user base, we average 98.7% field-level accuracy. Every extracted value comes with a confidence score, so you\u2019ll always know which fields might need a second look. Most receipts need zero corrections.',
+  },
+  {
+    q: 'What happens to my data? Is it secure?',
+    a: 'All data is encrypted at rest with AES-256 and in transit with TLS 1.3. We host on Indian cloud infrastructure, so your data stays within the country. You can delete any receipt at any time — we don\u2019t keep copies.',
+  },
+  {
+    q: 'Can my whole team use it?',
+    a: 'Absolutely. You can invite operators, managers, and admins — each with different permission levels. Operators can upload, managers can review and export, admins control everything. Works well for multi-branch setups.',
+  },
+  {
+    q: 'Do I need to install anything?',
+    a: 'No. TransportAI is fully web-based. Works on Chrome, Safari, Firefox — and the mobile view is optimised for uploading directly from your phone camera. No app store, no downloads.',
+  },
 ]
 
+/* ─── component ─── */
 export default function LandingPage() {
   return (
-    <main>
-      {/* Hero */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="max-w-5xl mx-auto text-center">
-          <Badge className="mb-6 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">
-            AI-Powered for Indian Transport Businesses
-          </Badge>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight text-balance mb-6">
-            Turn Transport Receipts Into<br className="hidden sm:block" />
-            <span className="text-primary"> Digital Records in Seconds</span>
-          </h1>
-          <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-10 text-pretty">
-            Upload a receipt, let AI extract the data, review in one click — your entire
-            {"fleet's"} paperwork, searchable forever.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" asChild className="w-full sm:w-auto">
-              <Link href="/signup">
-                Start Free Trial — No Credit Card
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-              <Link href="/dashboard">See Live Demo</Link>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground mt-4">14-day free trial · No setup fee · Cancel anytime</p>
-        </div>
+    <main className="overflow-x-hidden">
+      {/* ═══════════════════════════════════════════
+          HERO
+      ═══════════════════════════════════════════ */}
+      <section className="relative pt-28 pb-20 lg:pt-36 lg:pb-28 px-4">
+        {/* background gradient + grain */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/10 grain-overlay -z-10" />
 
-        {/* Animated receipt flow */}
-        <div className="max-w-4xl mx-auto mt-16">
-          <div className="grid grid-cols-3 gap-4">
-            {/* Step 1: Paper receipt */}
-            <div className="bg-card rounded-xl border border-border p-5 shadow-sm text-center">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mx-auto mb-3">
-                <span className="text-xl">📄</span>
-              </div>
-              <p className="text-xs font-semibold text-foreground mb-1">Paper Receipt</p>
-              <div className="space-y-1.5 mt-3">
-                <div className="h-2 bg-muted rounded-full w-full" />
-                <div className="h-2 bg-muted rounded-full w-4/5" />
-                <div className="h-2 bg-muted rounded-full w-3/5" />
-                <div className="h-2 bg-muted rounded-full w-4/5" />
-              </div>
-            </div>
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-5 gap-12 lg:gap-16 items-center">
+            {/* ─── left: copy (60%) ─── */}
+            <motion.div
+              className="lg:col-span-3"
+              initial="hidden"
+              animate="visible"
+              variants={stagger}
+            >
+              <motion.p
+                variants={fadeUp}
+                className="text-sm font-medium tracking-wide text-primary/80 uppercase mb-4"
+              >
+                AI-powered receipt management for Indian transport
+              </motion.p>
 
-            {/* Step 2: AI processing */}
-            <div className="bg-primary rounded-xl p-5 shadow-sm text-center">
-              <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center mx-auto mb-3">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <p className="text-xs font-semibold text-white mb-1">AI Processing</p>
-              <div className="space-y-1.5 mt-3">
-                <div className="h-2 bg-white/30 rounded-full w-full animate-pulse" />
-                <div className="h-2 bg-white/20 rounded-full w-4/5 animate-pulse" style={{ animationDelay: '0.2s' }} />
-                <div className="h-2 bg-white/30 rounded-full w-3/5 animate-pulse" style={{ animationDelay: '0.4s' }} />
-              </div>
-            </div>
+              <motion.h1
+                variants={fadeUp}
+                className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.1] tracking-tight text-foreground mb-6"
+              >
+                Stop typing out bilties
+                <br className="hidden sm:block" />
+                by hand.{' '}
+                <span className="text-primary">
+                  Let the machine
+                  <br className="hidden sm:block" />
+                  read them.
+                </span>
+              </motion.h1>
 
-            {/* Step 3: Clean data */}
-            <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
-              <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-5 h-5 text-green-500" />
+              <motion.p
+                variants={fadeUp}
+                className="text-lg text-muted-foreground leading-relaxed max-w-xl mb-8"
+              >
+                We built an AI that actually understands handwritten Indian transport receipts.
+                Upload a photo, get structured data back in seconds — consignor, destination,
+                freight charges, all of it.
+              </motion.p>
+
+              <motion.div variants={fadeUp} className="flex flex-wrap gap-4">
+                <Button size="lg" className="rounded-full" asChild>
+                  <Link href="/signup">
+                    Try it free
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="rounded-full" asChild>
+                  <Link href="#how-it-works">
+                    <Play className="mr-2 h-4 w-4" />
+                    Watch it work
+                  </Link>
+                </Button>
+              </motion.div>
+            </motion.div>
+
+            {/* ─── right: 3D receipt card (40%) ─── */}
+            <motion.div
+              className="lg:col-span-2 perspective-1200"
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="receipt-3d animate-float-slow relative">
+                {/* floating match badge */}
+                <div className="absolute -top-3 -right-3 z-10">
+                  <Badge className="bg-white dark:bg-card shadow-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground">
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse-dot" />
+                    99.2% match
+                  </Badge>
+                </div>
+
+                {/* receipt body */}
+                <div className="bg-amber-50/80 dark:bg-card border border-amber-200/60 dark:border-border rounded-xl p-6 shadow-2xl max-w-sm mx-auto lg:mx-0">
+                  {/* header */}
+                  <div className="text-center border-b border-dashed border-amber-300/50 dark:border-border pb-3 mb-4">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                      Goods Receipt / Bilty
+                    </p>
+                    <p className="font-mono text-xs text-muted-foreground mt-1">
+                      GR No: <span className="font-semibold text-foreground">AMR-2025-4471</span>
+                    </p>
+                  </div>
+
+                  {/* fields */}
+                  <div className="space-y-2.5 font-mono text-sm">
+                    {[
+                      { label: 'Date', value: '12 Mar 2025' },
+                      { label: 'From', value: 'Amritsar' },
+                      { label: 'To', value: 'Kotkapura' },
+                      { label: 'Consignor', value: 'Gurmeet Transport' },
+                      { label: 'Amount', value: '₹4,250', highlight: true },
+                    ].map((f) => (
+                      <div key={f.label} className="flex justify-between items-center">
+                        <span className="text-muted-foreground text-xs">{f.label}</span>
+                        <span
+                          className={cn(
+                            'font-semibold',
+                            f.highlight ? 'text-primary text-base' : 'text-foreground'
+                          )}
+                        >
+                          {f.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* footer */}
+                  <div className="mt-4 pt-3 border-t border-dashed border-amber-300/50 dark:border-border flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                      <span className="text-[10px] text-green-600 dark:text-green-400 font-medium">
+                        Verified
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      TransportAI
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs font-semibold text-foreground mb-1 text-center">Clean Record</p>
-              <div className="space-y-1.5 mt-3 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">From</span>
-                  <span className="font-mono font-medium">Amritsar</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">To</span>
-                  <span className="font-mono font-medium">Kotkapura</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-mono font-medium text-primary">₹4,250</span>
-                </div>
-              </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Social proof bar */}
-      <section className="border-y border-border bg-muted/30 py-8 px-4">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm text-muted-foreground mb-6">Trusted by transport businesses across Punjab & beyond</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
-            {[
-              { num: '50,000+', label: 'Receipts Processed' },
-              { num: '200+', label: 'Active Businesses' },
-              { num: '99.2%', label: 'AI Accuracy' },
-              { num: '4.9/5', label: 'Customer Rating' },
-            ].map((s) => (
+      {/* ═══════════════════════════════════════════
+          SOCIAL PROOF BAR
+      ═══════════════════════════════════════════ */}
+      <section className="border-y border-border bg-muted/30 py-10 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 text-center">
+            {stats.map((s) => (
               <div key={s.label}>
-                <p className="text-2xl font-bold text-primary">{s.num}</p>
+                <p className="font-display text-2xl sm:text-3xl font-bold text-foreground">
+                  {s.value}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
               </div>
             ))}
@@ -179,167 +342,434 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-20 px-4">
+      {/* ═══════════════════════════════════════════
+          FEATURES — BENTO GRID
+      ═══════════════════════════════════════════ */}
+      <section id="features" className="py-24 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">Features</Badge>
-            <h2 className="text-3xl font-bold text-foreground text-balance">Everything your operations team needs</h2>
-            <p className="text-muted-foreground mt-3 max-w-xl mx-auto">Built specifically for Indian freight and transport companies managing high volumes of paper receipts.</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f) => (
-              <Card key={f.title} className="border-border shadow-sm hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <f.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <h3 className="font-semibold text-foreground mb-2">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
-                </CardContent>
-              </Card>
+          <motion.div
+            className="max-w-2xl mb-14"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+          >
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-3">
+              What it actually does
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              No filler features. Everything here exists because transport operators asked for it.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            variants={stagger}
+          >
+            {features.map((f, i) => (
+              <motion.div
+                key={f.title}
+                variants={fadeUp}
+                className={cn(f.large ? 'sm:col-span-2 lg:col-span-2' : '')}
+              >
+                <Card
+                  className={cn(
+                    'glossy-card h-full border-border hover:shadow-lg transition-shadow duration-300',
+                    f.large ? 'p-0' : ''
+                  )}
+                >
+                  <CardContent className="p-6 flex flex-col h-full">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-4 shrink-0">
+                      <f.icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-2">
+                      {f.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-4">{f.desc}</p>
+
+                    {/* mini preview for large cards */}
+                    {f.preview && f.title === 'Receipt Extraction' && (
+                      <div className="mt-auto bg-muted/50 rounded-lg p-4 border border-border">
+                        <div className="grid grid-cols-3 gap-3 text-xs font-mono">
+                          {[
+                            { field: 'GR No', val: 'AMR-4471', conf: '99%' },
+                            { field: 'From', val: 'Amritsar', conf: '98%' },
+                            { field: 'Amount', val: '₹4,250', conf: '97%' },
+                          ].map((r) => (
+                            <div key={r.field} className="space-y-1">
+                              <p className="text-muted-foreground">{r.field}</p>
+                              <p className="font-semibold text-foreground">{r.val}</p>
+                              <p className="text-green-600 dark:text-green-400 text-[10px]">
+                                {r.conf}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {f.preview && f.title === 'Analytics Dashboard' && (
+                      <div className="mt-auto bg-muted/50 rounded-lg p-4 border border-border">
+                        <div className="flex items-end gap-1.5 h-16">
+                          {[40, 65, 50, 80, 72, 95, 60, 88].map((h, idx) => (
+                            <div
+                              key={idx}
+                              className="flex-1 bg-primary/20 rounded-t-sm"
+                              style={{ height: `${h}%` }}
+                            >
+                              <div
+                                className="w-full bg-primary rounded-t-sm"
+                                style={{ height: `${Math.min(h + 10, 100)}%` }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex justify-between mt-2 text-[10px] text-muted-foreground font-mono">
+                          <span>Jan</span>
+                          <span>Aug</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20 px-4 bg-muted/20">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">How It Works</Badge>
-            <h2 className="text-3xl font-bold text-foreground">From paper to database in 4 steps</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {steps.map((s) => (
-              <div key={s.num} className="text-center">
-                <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-                  <span className="text-sm font-bold text-primary-foreground">{s.num}</span>
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">{s.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
-              </div>
-            ))}
-          </div>
+      {/* ═══════════════════════════════════════════
+          HOW IT WORKS — VERTICAL TIMELINE
+      ═══════════════════════════════════════════ */}
+      <section id="how-it-works" className="py-24 px-4 bg-muted/30">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            className="mb-16"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+          >
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-3">
+              Paper in, data out. Four steps.
+            </h2>
+          </motion.div>
+
+          <motion.div
+            className="relative"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            variants={stagger}
+          >
+            {/* vertical line */}
+            <div className="absolute left-5 top-0 bottom-0 w-px bg-border hidden sm:block" />
+
+            <div className="space-y-12">
+              {timelineSteps.map((step, i) => (
+                <motion.div key={step.num} variants={fadeUp} className="flex gap-6 sm:gap-8">
+                  {/* number circle */}
+                  <div className="relative shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold font-display z-10 relative">
+                      {step.num}
+                    </div>
+                  </div>
+
+                  {/* content */}
+                  <div className="pb-2">
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-1.5">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-lg">
+                      {step.desc}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Pricing preview */}
-      <section className="py-20 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">Pricing</Badge>
-            <h2 className="text-3xl font-bold text-foreground">Simple, transparent pricing</h2>
-            <p className="text-muted-foreground mt-3">Start free, scale as your business grows</p>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {[
-              { plan: 'Starter', price: '₹999', period: '/mo', receipts: '500/mo', users: '2 users', highlight: false },
-              { plan: 'Professional', price: '₹2,999', period: '/mo', receipts: '5,000/mo', users: '10 users', highlight: true },
-              { plan: 'Enterprise', price: 'Custom', period: '', receipts: 'Unlimited', users: 'Unlimited', highlight: false },
-            ].map((p) => (
-              <Card key={p.plan} className={`relative border shadow-sm ${p.highlight ? 'border-primary ring-1 ring-primary' : 'border-border'}`}>
-                {p.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground">Most Popular</Badge>
-                  </div>
-                )}
-                <CardContent className="p-6 text-center">
-                  <h3 className="font-semibold text-foreground mb-2">{p.plan}</h3>
-                  <div className="mb-4">
-                    <span className="text-3xl font-bold text-foreground">{p.price}</span>
-                    <span className="text-muted-foreground text-sm">{p.period}</span>
-                  </div>
-                  <div className="space-y-2 text-sm text-muted-foreground mb-6">
-                    <p>{p.receipts}</p>
-                    <p>{p.users}</p>
-                  </div>
-                  <Button className="w-full" variant={p.highlight ? 'default' : 'outline'} asChild>
-                    <Link href="/pricing">
-                      {p.plan === 'Enterprise' ? 'Contact Sales' : 'Get Started'}
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ═══════════════════════════════════════════
+          TESTIMONIALS
+      ═══════════════════════════════════════════ */}
+      <section className="py-24 px-4">
+        <div className="max-w-6xl mx-auto">
+          <motion.h2
+            className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-12"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+          >
+            Don&rsquo;t take our word for it
+          </motion.h2>
 
-      {/* Testimonials */}
-      <section className="py-20 px-4 bg-muted/20">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">Testimonials</Badge>
-            <h2 className="text-3xl font-bold text-foreground">Loved by transport operators</h2>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {testimonials.map((t) => (
-              <Card key={t.name} className="border-border shadow-sm">
-                <CardContent className="p-6">
-                  <div className="flex gap-0.5 mb-4">
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">&ldquo;{t.text}&rdquo;</p>
+          <motion.div
+            className="grid lg:grid-cols-5 gap-6"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            variants={stagger}
+          >
+            {/* featured — left 60% */}
+            <motion.div variants={fadeUp} className="lg:col-span-3">
+              <Card className="h-full border-border">
+                <CardContent className="p-8 flex flex-col justify-between h-full">
                   <div>
-                    <p className="text-sm font-semibold text-foreground">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                    <div className="flex gap-0.5 mb-5">
+                      {Array.from({ length: testimonials.featured.rating }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className="w-4 h-4 fill-amber-400 text-amber-400"
+                        />
+                      ))}
+                    </div>
+                    <p className="text-lg leading-relaxed text-foreground mb-8">
+                      &ldquo;{testimonials.featured.text}&rdquo;
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        'w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0',
+                        testimonials.featured.color
+                      )}
+                    >
+                      {testimonials.featured.initials}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">
+                        {testimonials.featured.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {testimonials.featured.role}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            </motion.div>
+
+            {/* right stack 40% */}
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              {testimonials.right.map((t) => (
+                <motion.div key={t.name} variants={fadeUp}>
+                  <Card className="border-border h-full">
+                    <CardContent className="p-6 flex flex-col justify-between h-full">
+                      <div>
+                        <div className="flex gap-0.5 mb-4">
+                          {Array.from({ length: t.rating }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className="w-3.5 h-3.5 fill-amber-400 text-amber-400"
+                            />
+                          ))}
+                        </div>
+                        <p className="text-sm leading-relaxed text-foreground mb-5">
+                          &ldquo;{t.text}&rdquo;
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            'w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0',
+                            t.color
+                          )}
+                        >
+                          {t.initials}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground text-sm">{t.name}</p>
+                          <p className="text-xs text-muted-foreground">{t.role}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="py-20 px-4">
+      {/* ═══════════════════════════════════════════
+          PRICING PREVIEW
+      ═══════════════════════════════════════════ */}
+      <section className="py-24 px-4 bg-muted/20">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            className="text-center mb-14"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+          >
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-3">
+              Plans that grow with your fleet
+            </h2>
+            <p className="text-muted-foreground text-lg">
+              Start free. No credit card. Upgrade when you&rsquo;re ready.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="grid sm:grid-cols-3 gap-6 items-start"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            variants={stagger}
+          >
+            {plans.map((p) => (
+              <motion.div
+                key={p.name}
+                variants={fadeUp}
+                className={cn(p.highlight && 'scale-[1.02]')}
+              >
+                <Card
+                  className={cn(
+                    'relative border shadow-sm transition-shadow duration-300',
+                    p.highlight
+                      ? 'ring-2 ring-primary shadow-xl border-primary'
+                      : 'border-border hover:shadow-md'
+                  )}
+                >
+                  {p.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-primary text-primary-foreground shadow-sm">
+                        Most Popular
+                      </Badge>
+                    </div>
+                  )}
+                  <CardContent className="p-7 text-center">
+                    <h3 className="font-display text-lg font-semibold text-foreground mb-1">
+                      {p.name}
+                    </h3>
+                    <div className="mb-5">
+                      <span className="text-4xl font-bold text-foreground font-display">
+                        {p.price}
+                      </span>
+                      {p.period && (
+                        <span className="text-muted-foreground text-sm">{p.period}</span>
+                      )}
+                    </div>
+
+                    <ul className="space-y-2.5 text-sm text-muted-foreground mb-7 text-left">
+                      {p.bullets.map((b) => (
+                        <li key={b} className="flex items-start gap-2">
+                          <CheckCircle className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      className="w-full"
+                      variant={p.highlight ? 'default' : 'outline'}
+                      asChild
+                    >
+                      <Link href={p.name === 'Enterprise' ? '/contact' : '/signup'}>
+                        {p.cta}
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════
+          FAQ
+      ═══════════════════════════════════════════ */}
+      <section className="py-24 px-4">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/10">FAQ</Badge>
-            <h2 className="text-3xl font-bold text-foreground">Common questions</h2>
-          </div>
-          <div className="space-y-4">
+          <motion.h2
+            className="font-display text-3xl sm:text-4xl font-bold text-foreground mb-10"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fadeUp}
+          >
+            Quick answers
+          </motion.h2>
+
+          <motion.div
+            className="space-y-4"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            variants={stagger}
+          >
             {faqs.map((f) => (
-              <details key={f.q} className="group border border-border rounded-xl overflow-hidden">
-                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer font-medium text-foreground text-sm hover:bg-muted/50 transition-colors list-none">
+              <motion.details
+                key={f.q}
+                variants={fadeUp}
+                className="group border border-border rounded-xl overflow-hidden"
+              >
+                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer font-medium text-foreground text-sm hover:bg-muted/50 transition-colors list-none [&::-webkit-details-marker]:hidden">
                   {f.q}
                   <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0 transition-transform group-open:rotate-180" />
                 </summary>
                 <div className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed border-t border-border bg-muted/20">
                   <p className="pt-4">{f.a}</p>
                 </div>
-              </details>
+              </motion.details>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* CTA Banner */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-primary rounded-2xl p-10 text-center">
-            <h2 className="text-3xl font-bold text-primary-foreground mb-4 text-balance">
-              Ready to digitise your transport receipts?
-            </h2>
-            <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto">
-              Join 200+ transport businesses already saving hours every day. Start your free 14-day trial — no credit card required.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" variant="secondary" asChild>
-                <Link href="/signup">
-                  Start Free Trial
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground" asChild>
-                <Link href="/contact">Talk to Sales</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* ═══════════════════════════════════════════
+          FINAL CTA
+      ═══════════════════════════════════════════ */}
+      <section className="py-24 px-4 bg-[linear-gradient(135deg,oklch(0.50_0.20_270),oklch(0.45_0.18_270)_50%,oklch(0.38_0.20_280))]">
+        <motion.div
+          className="max-w-3xl mx-auto text-center"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={stagger}
+        >
+          <motion.h2
+            variants={fadeUp}
+            className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-5"
+          >
+            Your receipts are piling up.
+            <br />
+            We can help.
+          </motion.h2>
+          <motion.p
+            variants={fadeUp}
+            className="text-lg text-white/80 mb-9 max-w-xl mx-auto"
+          >
+            Start your 14-day trial. Takes 2 minutes to set up, nothing to install.
+          </motion.p>
+          <motion.div variants={fadeUp} className="flex flex-wrap justify-center gap-4">
+            <Button size="lg" variant="secondary" className="rounded-full bg-white text-foreground hover:bg-white/90" asChild>
+              <Link href="/signup">
+                Get started free
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full border-white/30 text-white hover:bg-white/10 hover:text-white"
+              asChild
+            >
+              <Link href="/contact">
+                <Phone className="mr-2 h-4 w-4" />
+                Talk to our team
+              </Link>
+            </Button>
+          </motion.div>
+        </motion.div>
       </section>
     </main>
   )

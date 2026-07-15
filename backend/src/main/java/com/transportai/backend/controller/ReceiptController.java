@@ -26,6 +26,8 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -54,9 +56,22 @@ public class ReceiptController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ReceiptEntity>> getAllReceipts(@RequestHeader(value = "Authorization", required = false) String authorization) {
+    public ResponseEntity<?> getAllReceipts(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "0") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String dateFilter) {
         UserEntity user = authService.requireAuthenticatedUser(authorization);
-        return ResponseEntity.ok(receiptRepository.findByCompanyOrderByUploadedAtDesc(user.getCompany()));
+        
+        // If size is 0, return all (for backward compatibility with reports that expect all data)
+        if (size == 0) {
+            return ResponseEntity.ok(receiptRepository.findByCompanyOrderByUploadedAtDesc(user.getCompany()));
+        }
+        
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "uploadedAt"));
+        return ResponseEntity.ok(receiptRepository.searchReceipts(user.getCompany(), source, dateFilter, search, pageable));
     }
 
     @GetMapping("/{id}")
@@ -68,25 +83,27 @@ public class ReceiptController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<ReceiptEntity> uploadReceipt(
+    public CompletableFuture<ResponseEntity<ReceiptEntity>> uploadReceipt(
             @RequestHeader(value = "X-Transporter-ID", required = false, defaultValue = "1") String transporterId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam("file") MultipartFile file) {
         UserEntity user = authService.requireAuthenticatedUser(authorization);
-        return ResponseEntity.ok(processUploadedFile(transporterId, user, file));
+        return processUploadedFileAsync(transporterId, user, file).thenApply(ResponseEntity::ok);
     }
 
     @PostMapping("/upload/batch")
-    public ResponseEntity<List<ReceiptEntity>> uploadReceiptsBatch(
+    public CompletableFuture<ResponseEntity<List<ReceiptEntity>>> uploadReceiptsBatch(
             @RequestHeader(value = "X-Transporter-ID", required = false, defaultValue = "1") String transporterId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @RequestParam("files") List<MultipartFile> files) {
         UserEntity user = authService.requireAuthenticatedUser(authorization);
-        List<ReceiptEntity> results = new ArrayList<>();
+        List<CompletableFuture<ReceiptEntity>> futures = new ArrayList<>();
         for (MultipartFile file : files) {
-            results.add(processUploadedFile(transporterId, user, file));
+            futures.add(processUploadedFileAsync(transporterId, user, file));
         }
-        return ResponseEntity.ok(results);
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
+                .thenApply(ResponseEntity::ok);
     }
 
     @PostMapping("/manual")
@@ -116,70 +133,70 @@ public class ReceiptController {
         return ResponseEntity.ok(receiptRepository.save(entity));
     }
 
-    private ReceiptEntity processUploadedFile(String transporterId, UserEntity user, MultipartFile file) {
+    private CompletableFuture<ReceiptEntity> processUploadedFileAsync(String transporterId, UserEntity user, MultipartFile file) {
         System.out.println("Processing receipt upload for Transporter ID: " + transporterId);
         ReceiptEntity entity = new ReceiptEntity();
         entity.setUploadedBy(displayName(user));
         entity.setOwnerUserId(user.getId());
         entity.setCompany(user.getCompany());
-        entity = receiptRepository.save(entity);
+        // Removed duplicate premature save
 
+        File imageFile;
         try {
-            // 2. Store the uploaded file
-            File imageFile = storageService.store(file);
+            imageFile = storageService.store(file);
             entity.setOriginalFilename(file.getOriginalFilename());
             entity.setStoredFilename(imageFile.getName());
             entity.setContentType(file.getContentType());
-
-            // 3. Extract structured data DIRECTLY from the image using Gemini Vision API
-            ReceiptData extractedData = extractionService.extractDataFromImage(imageFile);
-
-            // 4. Update the entity with extracted data
-            entity.setProcessedAt(LocalDateTime.now());
-            entity.setGrNumber(valueOrMissing(extractedData.documentNo()));
-            entity.setBiltyDate(valueOrMissing(extractedData.date()));
-            entity.setConsignor(extractedData.consignor() != null ? extractedData.consignor().name() : "");
-            entity.setConsignee(extractedData.consignee() != null ? extractedData.consignee().name() : "");
-            entity.setSource(extractedData.origin());
-            entity.setDestination(extractedData.destination());
-            entity.setPrivateMarka(extractedData.privateMarka());
-            double totalCharges = extractedData.freight() != null ? extractedData.freight().totalAmount() : -1.0;
-            entity.setCharges(totalCharges);
-            entity.setAmount(totalCharges);
-            
-            int packages = 0;
-            if (extractedData.items() != null) {
-                packages = extractedData.items().stream().mapToInt(ReceiptData.Item::quantity).sum();
-                if(!extractedData.items().isEmpty()) {
-                    String material = extractedData.items().stream()
-                            .map(ReceiptData.Item::description)
-                            .filter(description -> description != null && !description.isBlank())
-                            .distinct()
-                            .reduce((left, right) -> left + ", " + right)
-                            .orElse("MISSING");
-                    entity.setMaterial(material);
-                    entity.setDescription(material);
-                }
-            }
-            entity.setPackages(packages);
-            entity.setConfidenceOverall(0);
-            
-            entity.setExtractedJson(objectMapper.writeValueAsString(extractedData));
-            
-            entity = receiptRepository.save(entity);
-            return entity;
-
-        } catch (ExtractionService.NonBiltyDocumentException e) {
-            entity.setProcessedAt(LocalDateTime.now());
-            entity.setRejectionReason(e.getMessage());
-            entity = receiptRepository.save(entity);
-            return entity;
         } catch (Exception e) {
             entity.setProcessedAt(LocalDateTime.now());
             entity.setRejectionReason(errorMessage(e));
-            entity = receiptRepository.save(entity);
-            return entity;
+            return CompletableFuture.completedFuture(receiptRepository.save(entity));
         }
+
+        return extractionService.extractDataFromImage(imageFile).handle((extractedData, throwable) -> {
+            if (throwable != null) {
+                entity.setProcessedAt(LocalDateTime.now());
+                if (throwable.getCause() instanceof ExtractionService.NonBiltyDocumentException) {
+                    entity.setRejectionReason(throwable.getCause().getMessage());
+                } else {
+                    entity.setRejectionReason(errorMessage(new Exception(throwable)));
+                }
+            } else {
+                entity.setProcessedAt(LocalDateTime.now());
+                entity.setGrNumber(valueOrMissing(extractedData.documentNo()));
+                entity.setBiltyDate(valueOrMissing(extractedData.date()));
+                entity.setConsignor(extractedData.consignor() != null ? extractedData.consignor().name() : "");
+                entity.setConsignee(extractedData.consignee() != null ? extractedData.consignee().name() : "");
+                entity.setSource(extractedData.origin());
+                entity.setDestination(extractedData.destination());
+                entity.setPrivateMarka(extractedData.privateMarka());
+                double totalCharges = extractedData.freight() != null ? extractedData.freight().totalAmount() : -1.0;
+                entity.setCharges(totalCharges);
+                entity.setAmount(totalCharges);
+                
+                int packages = 0;
+                if (extractedData.items() != null) {
+                    packages = extractedData.items().stream().mapToInt(ReceiptData.Item::quantity).sum();
+                    if(!extractedData.items().isEmpty()) {
+                        String material = extractedData.items().stream()
+                                .map(ReceiptData.Item::description)
+                                .filter(description -> description != null && !description.isBlank())
+                                .distinct()
+                                .reduce((left, right) -> left + ", " + right)
+                                .orElse("MISSING");
+                        entity.setMaterial(material);
+                        entity.setDescription(material);
+                    }
+                }
+                entity.setPackages(packages);
+                entity.setConfidenceOverall(0);
+                
+                try {
+                    entity.setExtractedJson(objectMapper.writeValueAsString(extractedData));
+                } catch (Exception ignored) {}
+            }
+            return receiptRepository.save(entity);
+        });
     }
 
     private String errorMessage(Exception e) {

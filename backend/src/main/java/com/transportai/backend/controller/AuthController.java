@@ -48,6 +48,11 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/me/profile")
+    public ResponseEntity<UserResponse> updateProfile(@RequestHeader("Authorization") String authorization, @RequestBody UpdateProfileRequest request) {
+        return ResponseEntity.ok(authService.updateProfile(authorization, request));
+    }
+
     @PostMapping("/me/avatar")
     public ResponseEntity<UserResponse> updateAvatar(@RequestHeader("Authorization") String authorization, @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(authService.updateAvatar(authorization, file));
@@ -63,6 +68,7 @@ public class AuthController {
     public record SignupRequest(String firstName, String lastName, String company, String email, String password, String code) {}
     public record LoginRequest(String email, String password) {}
     public record UpdatePasswordRequest(String currentPassword, String newPassword) {}
+    public record UpdateProfileRequest(String company, String firstName, String lastName) {}
     public record AuthResponse(String token, UserResponse user) {}
     public record UserResponse(String id, String name, String email, String role, String avatar, String company) {}
 }

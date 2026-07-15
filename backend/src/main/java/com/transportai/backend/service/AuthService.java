@@ -13,6 +13,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.annotation.Transactional;
+import com.transportai.backend.security.JwtTokenProvider;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -30,6 +34,7 @@ public class AuthService {
     private final EmailService emailService;
     private final RateLimitService rateLimitService;
     private final StorageService storageService;
+    private final JwtTokenProvider jwtTokenProvider;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.auth.session-hours:12}")
@@ -41,13 +46,14 @@ public class AuthService {
     @Value("${app.auth.max-verification-attempts:5}")
     private int maxVerificationAttempts;
 
-    public AuthService(UserRepository userRepository, EmailVerificationRepository verificationRepository, PasswordService passwordService, EmailService emailService, RateLimitService rateLimitService, StorageService storageService) {
+    public AuthService(UserRepository userRepository, EmailVerificationRepository verificationRepository, PasswordService passwordService, EmailService emailService, RateLimitService rateLimitService, StorageService storageService, JwtTokenProvider jwtTokenProvider) {
         this.userRepository = userRepository;
         this.verificationRepository = verificationRepository;
         this.passwordService = passwordService;
         this.emailService = emailService;
         this.rateLimitService = rateLimitService;
         this.storageService = storageService;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     public AuthController.VerificationResponse requestVerification(String email, String remoteAddress) {
@@ -74,6 +80,7 @@ public class AuthService {
         return new AuthController.VerificationResponse("Verification code sent.");
     }
 
+    @Transactional
     public AuthController.AuthResponse signup(AuthController.SignupRequest request, String remoteAddress) {
         rateLimitService.check("signup:" + remoteAddress, 10, Duration.ofHours(1));
         validateSignup(request);
@@ -107,11 +114,12 @@ public class AuthService {
         user.setPasswordHash(passwordService.hash(request.password()));
         user.setRole("Admin");
         user.setEmailVerified(true);
-        issueSession(user);
         user = userRepository.save(user);
-        return toAuthResponse(user);
+        String jwt = jwtTokenProvider.generateToken(user);
+        return new AuthController.AuthResponse(jwt, toUserResponse(user));
     }
 
+    @Transactional
     public AuthController.AuthResponse login(AuthController.LoginRequest request, String remoteAddress) {
         rateLimitService.check("login:" + remoteAddress + ":" + normalizeEmail(request.email()), 8, Duration.ofMinutes(15));
         UserEntity user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
@@ -119,9 +127,8 @@ public class AuthService {
         if (!user.isEmailVerified() || !passwordService.verify(request.password(), user.getPasswordHash())) {
             throw new RuntimeException("Invalid email or password.");
         }
-        issueSession(user);
-        user = userRepository.save(user);
-        return toAuthResponse(user);
+        String jwt = jwtTokenProvider.generateToken(user);
+        return new AuthController.AuthResponse(jwt, toUserResponse(user));
     }
 
     public AuthController.UserResponse currentUser(String authorizationHeader) {
@@ -142,11 +149,11 @@ public class AuthService {
     }
 
     public void logout(String authorizationHeader) {
-        UserEntity user = requireUser(authorizationHeader);
-        user.setSessionToken(null);
-        userRepository.save(user);
+        // With stateless JWTs, logout is typically handled client-side by deleting the token.
+        // For absolute invalidation, a token blacklist could be implemented here.
     }
 
+    @Transactional
     public void updatePassword(String authorizationHeader, String currentPassword, String newPassword) {
         UserEntity user = requireUser(authorizationHeader);
         if (!passwordService.verify(currentPassword, user.getPasswordHash())) {
@@ -159,6 +166,23 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    @Transactional
+    public AuthController.UserResponse updateProfile(String authorizationHeader, AuthController.UpdateProfileRequest request) {
+        UserEntity user = requireUser(authorizationHeader);
+        if (request.firstName() != null && !request.firstName().isBlank()) {
+            user.setFirstName(request.firstName());
+        }
+        if (request.lastName() != null && !request.lastName().isBlank()) {
+            user.setLastName(request.lastName());
+        }
+        if (request.company() != null && !request.company().isBlank()) {
+            user.setCompany(request.company());
+        }
+        user = userRepository.save(user);
+        return toUserResponse(user);
+    }
+
+    @Transactional
     public AuthController.UserResponse updateAvatar(String authorizationHeader, MultipartFile file) {
         UserEntity user = requireUser(authorizationHeader);
         try {
@@ -185,10 +209,11 @@ public class AuthService {
     }
 
     private UserEntity requireUser(String authorizationHeader) {
-        String token = bearerToken(authorizationHeader);
-        UserEntity user = userRepository.findBySessionToken(token).orElseThrow(() -> new UnauthorizedException("Unauthorized."));
-        ensureSessionValid(user);
-        return user;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof UserEntity)) {
+            throw new UnauthorizedException("Unauthorized.");
+        }
+        return (UserEntity) auth.getPrincipal();
     }
 
     private AuthController.AuthResponse toAuthResponse(UserEntity user) {

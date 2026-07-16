@@ -12,7 +12,8 @@ public record ReceiptData(
     Party consignor,
     Party consignee,
     List<Item> items,
-    FreightDetails freight
+    FreightDetails freight,
+    String truckNumber
 ) {
     public record Party(String name, String gstin) {}
     public record Item(String description, int quantity, double weight) {}

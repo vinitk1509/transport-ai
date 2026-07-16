@@ -16,8 +16,10 @@ public class ReceiptEntity {
     private LocalDateTime processedAt;
     
     private String uploadedBy;
-
-    private String ownerUserId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private UserEntity ownerUser;
 
     private String company;
 
@@ -44,6 +46,8 @@ public class ReceiptEntity {
     private String contentType;
 
     private String rejectionReason;
+
+    private String truckNumber;
 
     @Column(columnDefinition = "text")
     private String extractedJson; // Stores the raw ReceiptData object as JSON
@@ -72,8 +76,13 @@ public class ReceiptEntity {
     public String getUploadedBy() { return uploadedBy; }
     public void setUploadedBy(String uploadedBy) { this.uploadedBy = uploadedBy; }
 
-    public String getOwnerUserId() { return ownerUserId; }
-    public void setOwnerUserId(String ownerUserId) { this.ownerUserId = ownerUserId; }
+    public UserEntity getOwnerUser() { return ownerUser; }
+    public void setOwnerUser(UserEntity ownerUser) { this.ownerUser = ownerUser; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("ownerUserId")
+    public String getOwnerUserId() {
+        return ownerUser != null ? ownerUser.getId() : null;
+    }
 
     public String getCompany() { return company; }
     public void setCompany(String company) { this.company = company; }
@@ -131,4 +140,7 @@ public class ReceiptEntity {
 
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+
+    public String getTruckNumber() { return truckNumber; }
+    public void setTruckNumber(String truckNumber) { this.truckNumber = truckNumber; }
 }

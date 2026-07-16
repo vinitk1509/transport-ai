@@ -1,7 +1,6 @@
 package com.transportai.backend.security;
 
 import com.transportai.backend.entity.UserEntity;
-import com.transportai.backend.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,11 +19,9 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
-    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, UserRepository userRepository) {
+    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider) {
         this.tokenProvider = tokenProvider;
-        this.userRepository = userRepository;
     }
 
     @Override
@@ -33,15 +30,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
-                String userId = tokenProvider.getUserIdFromJWT(jwt);
+                io.jsonwebtoken.Claims claims = tokenProvider.getClaimsFromJWT(jwt);
+                
+                UserEntity user = new UserEntity();
+                user.setId(claims.getSubject());
+                user.setEmail(claims.get("email", String.class));
+                user.setRole(claims.get("role", String.class));
+                user.setCompany(claims.get("company", String.class));
+                user.setFirstName(claims.get("firstName", String.class));
+                user.setLastName(claims.get("lastName", String.class));
 
-                userRepository.findById(userId).ifPresent(user -> {
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            user, null, Collections.emptyList());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        user, null, Collections.emptyList());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                });
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);

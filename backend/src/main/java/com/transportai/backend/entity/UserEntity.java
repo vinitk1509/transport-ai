@@ -13,6 +13,7 @@ import java.util.UUID;
 @Table(name = "app_users")
 public class UserEntity {
     @Id
+    @jakarta.persistence.GeneratedValue(strategy = jakarta.persistence.GenerationType.UUID)
     private String id;
 
     private String firstName;
@@ -31,7 +32,6 @@ public class UserEntity {
 
     @PrePersist
     public void prePersist() {
-        if (id == null) id = UUID.randomUUID().toString();
         if (createdAt == null) createdAt = LocalDateTime.now();
     }
 

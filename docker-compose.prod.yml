@@ -28,6 +28,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-${MAIL_USERNAME}}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Set CORS_ALLOWED_ORIGINS}
       SESSION_HOURS: ${SESSION_HOURS:-12}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       UPLOAD_DIR: /data/uploads
     volumes:
       - transport_ai_uploads:/data/uploads

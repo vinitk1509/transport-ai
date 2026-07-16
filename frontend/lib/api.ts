@@ -38,6 +38,7 @@ export interface BackendReceipt {
   contentType?: string;
   rejectionReason?: string;
   privateMarka?: string;
+  truckNumber?: string;
 }
 
 export const api = {
@@ -178,9 +179,12 @@ export const api = {
     return res.json();
   },
 
-  async uploadReceipts(files: File[]): Promise<BackendReceipt[]> {
+  async uploadReceipts(files: File[], truckNumber?: string): Promise<BackendReceipt[]> {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
+    if (truckNumber) {
+      formData.append('truckNumber', truckNumber);
+    }
 
     const res = await fetch(`${PROXY_URL}/receipts/upload/batch`, {
       method: 'POST',
@@ -274,6 +278,18 @@ export const api = {
       body: JSON.stringify({ ids }),
     });
     if (!res.ok) throw new Error('Failed to delete receipts');
+  },
+
+  async bulkUpdateVehicleNumbers(ids: string[], truckNumber: string): Promise<BackendReceipt[]> {
+    const res = await fetch(`${PROXY_URL}/receipts/bulk-update-vehicle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids, truckNumber }),
+    });
+    if (!res.ok) throw new Error('Failed to update vehicle numbers');
+    return res.json();
   },
 
   receiptFileUrl(id: string): string {

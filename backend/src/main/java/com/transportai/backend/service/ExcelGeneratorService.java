@@ -3,7 +3,7 @@ package com.transportai.backend.service;
 import com.transportai.backend.model.ReceiptData;
 import com.transportai.backend.entity.ReceiptEntity;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -17,7 +17,7 @@ public class ExcelGeneratorService {
     private static final String MISSING = "MISSING";
 
     public ByteArrayInputStream generateExcel(ReceiptData receipt) {
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("Receipt Data");
 
             // Define styles
@@ -87,12 +87,13 @@ public class ExcelGeneratorService {
                 dataRow.createCell(17).setCellValue(MISSING);
             }
 
-            // Auto-size columns
+            // Set fixed column widths (autoSizeColumn not supported by SXSSFWorkbook)
             for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, 5000);
             }
 
             workbook.write(out);
+            workbook.dispose(); // Clean up temp files
             return new ByteArrayInputStream(out.toByteArray());
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate Excel file", e);
@@ -100,53 +101,118 @@ public class ExcelGeneratorService {
     }
 
     public ByteArrayInputStream generateConsolidatedExcel(List<ReceiptEntity> receipts) {
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("All Bilties");
+            
             CellStyle headerStyle = workbook.createCellStyle();
             Font headerFont = workbook.createFont();
             headerFont.setBold(true);
             headerStyle.setFont(headerFont);
+            
+            CellStyle highlightStyle = workbook.createCellStyle();
+            highlightStyle.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
+            highlightStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font highlightFont = workbook.createFont();
+            highlightFont.setBold(true);
+            highlightStyle.setFont(highlightFont);
 
             String[] headers = {
-                    "GR/LR No.", "Bilty Date", "Uploaded At", "Processed At",
+                    "GR/LR No.", "Bilty Date", "Truck No.", "Uploaded At", "Processed At",
                     "Consignor", "Consignee", "From", "To", "Packages", "Material",
                     "Charges", "Private Marka (P.M.)", "Original File"
             };
 
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
-                cell.setCellValue(headers[i]);
-                cell.setCellStyle(headerStyle);
+            int rowIndex = 0;
+            
+            // Group by Transport Name (companyName from extracted JSON)
+            java.util.Map<String, List<ReceiptEntity>> grouped = new java.util.HashMap<>();
+            for (ReceiptEntity r : receipts) {
+                String transportName = getTransportName(r);
+                grouped.computeIfAbsent(transportName, k -> new java.util.ArrayList<>()).add(r);
+            }
+            // Date will be extracted dynamically per group
+            
+            for (java.util.Map.Entry<String, List<ReceiptEntity>> entry : grouped.entrySet()) {
+                String transportName = entry.getKey();
+                List<ReceiptEntity> groupReceipts = entry.getValue();
+                String truckNumber = groupReceipts.get(0).getTruckNumber();
+                if (truckNumber == null || truckNumber.isBlank()) {
+                    truckNumber = "_______________";
+                }
+                
+                // Highlighted Group Row
+                Row groupRow = sheet.createRow(rowIndex++);
+                Cell c0 = groupRow.createCell(0);
+                c0.setCellValue("Vehicle No: " + truckNumber);
+                c0.setCellStyle(highlightStyle);
+                
+                Cell c1 = groupRow.createCell(1);
+                c1.setCellValue("Transport Name: " + transportName);
+                c1.setCellStyle(highlightStyle);
+                
+                String headerDate = groupReceipts.get(0).getUploadedAt() != null 
+                        ? groupReceipts.get(0).getUploadedAt().toLocalDate().toString() 
+                        : java.time.LocalDate.now().toString();
+                
+                Cell c2 = groupRow.createCell(2);
+                c2.setCellValue("Batch Date: " + headerDate);
+                c2.setCellStyle(highlightStyle);
+                
+                // Header Row
+                Row headerRow = sheet.createRow(rowIndex++);
+                for (int i = 0; i < headers.length; i++) {
+                    Cell cell = headerRow.createCell(i);
+                    cell.setCellValue(headers[i]);
+                    cell.setCellStyle(headerStyle);
+                }
+                
+                // Data Rows
+                for (ReceiptEntity receipt : groupReceipts) {
+                    Row row = sheet.createRow(rowIndex++);
+                    row.createCell(0).setCellValue(text(receipt.getGrNumber()));
+                    row.createCell(1).setCellValue(text(receipt.getBiltyDate()));
+                    row.createCell(2).setCellValue(text(receipt.getTruckNumber()));
+                    row.createCell(3).setCellValue(receipt.getUploadedAt() != null ? receipt.getUploadedAt().toString() : MISSING);
+                    row.createCell(4).setCellValue(receipt.getProcessedAt() != null ? receipt.getProcessedAt().toString() : MISSING);
+                    row.createCell(5).setCellValue(text(receipt.getConsignor()));
+                    row.createCell(6).setCellValue(text(receipt.getConsignee()));
+                    row.createCell(7).setCellValue(text(receipt.getSource()));
+                    row.createCell(8).setCellValue(text(receipt.getDestination()));
+                    row.createCell(9).setCellValue(receipt.getPackages());
+                    row.createCell(10).setCellValue(text(receipt.getMaterial()));
+                    row.createCell(11).setCellValue(receipt.getCharges() != 0 ? receipt.getCharges() : receipt.getAmount());
+                    row.createCell(12).setCellValue(text(receipt.getPrivateMarka()));
+                    row.createCell(13).setCellValue(text(receipt.getOriginalFilename()));
+                }
+                
+                // Empty row between groups
+                rowIndex++;
             }
 
-            int rowIndex = 1;
-            for (ReceiptEntity receipt : receipts) {
-                Row row = sheet.createRow(rowIndex++);
-                row.createCell(0).setCellValue(text(receipt.getGrNumber()));
-                row.createCell(1).setCellValue(text(receipt.getBiltyDate()));
-                row.createCell(2).setCellValue(receipt.getUploadedAt() != null ? receipt.getUploadedAt().toString() : MISSING);
-                row.createCell(3).setCellValue(receipt.getProcessedAt() != null ? receipt.getProcessedAt().toString() : MISSING);
-                row.createCell(4).setCellValue(text(receipt.getConsignor()));
-                row.createCell(5).setCellValue(text(receipt.getConsignee()));
-                row.createCell(6).setCellValue(text(receipt.getSource()));
-                row.createCell(7).setCellValue(text(receipt.getDestination()));
-                row.createCell(8).setCellValue(receipt.getPackages());
-                row.createCell(9).setCellValue(text(receipt.getMaterial()));
-                row.createCell(10).setCellValue(receipt.getCharges() != 0 ? receipt.getCharges() : receipt.getAmount());
-                row.createCell(11).setCellValue(text(receipt.getPrivateMarka()));
-                row.createCell(12).setCellValue(text(receipt.getOriginalFilename()));
-            }
-
             for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, 5000);
             }
 
             workbook.write(out);
+            workbook.dispose(); // Clean up temp files
             return new ByteArrayInputStream(out.toByteArray());
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate consolidated Excel file", e);
         }
+    }
+    
+    private String getTransportName(ReceiptEntity receipt) {
+        if (receipt.getExtractedJson() != null && !receipt.getExtractedJson().isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(receipt.getExtractedJson());
+                if (node.has("companyName") && !node.get("companyName").isNull()) {
+                    String name = node.get("companyName").asText();
+                    if (name != null && !name.isBlank()) return name;
+                }
+            } catch (Exception ignored) {}
+        }
+        return "UNKNOWN TRANSPORT";
     }
 
     private String text(String value) {

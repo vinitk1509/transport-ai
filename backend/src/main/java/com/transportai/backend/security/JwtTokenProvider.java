@@ -11,7 +11,7 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    @org.springframework.beans.factory.annotation.Value("${app.jwt.secret:defaultSecretKeyWithAtLeast32CharactersForHS256Signing1234567890}")
+    @org.springframework.beans.factory.annotation.Value("${app.jwt.secret}")
     private String jwtSecret;
 
     private SecretKey key;
@@ -32,29 +32,35 @@ public class JwtTokenProvider {
                 .subject(user.getId())
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole())
+                .claim("company", user.getCompany())
+                .claim("firstName", user.getFirstName())
+                .claim("lastName", user.getLastName())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
     }
 
-    public String getUserIdFromJWT(String token) {
-        Claims claims = Jwts.parser()
+    public Claims getClaimsFromJWT(String token) {
+        return Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-
-        return claims.getSubject();
     }
+
+    public String getUserIdFromJWT(String token) {
+        return getClaimsFromJWT(token).getSubject();
+    }
+
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JwtTokenProvider.class);
 
     public boolean validateToken(String authToken) {
         try {
             Jwts.parser().verifyWith(key).clockSkewSeconds(60).build().parseSignedClaims(authToken);
             return true;
         } catch (Exception ex) {
-            System.err.println("JWT Validation Error: " + ex.getMessage());
-            ex.printStackTrace();
+            logger.error("JWT Validation Error: {}", ex.getMessage(), ex);
         }
         return false;
     }

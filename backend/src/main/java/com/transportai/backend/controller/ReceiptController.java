@@ -86,20 +86,22 @@ public class ReceiptController {
     public CompletableFuture<ResponseEntity<ReceiptEntity>> uploadReceipt(
             @RequestHeader(value = "X-Transporter-ID", required = false, defaultValue = "1") String transporterId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "truckNumber", required = false) String truckNumber) {
         UserEntity user = authService.requireAuthenticatedUser(authorization);
-        return processUploadedFileAsync(transporterId, user, file).thenApply(ResponseEntity::ok);
+        return processUploadedFileAsync(transporterId, user, file, truckNumber).thenApply(ResponseEntity::ok);
     }
 
     @PostMapping("/upload/batch")
     public CompletableFuture<ResponseEntity<List<ReceiptEntity>>> uploadReceiptsBatch(
             @RequestHeader(value = "X-Transporter-ID", required = false, defaultValue = "1") String transporterId,
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestParam("files") List<MultipartFile> files) {
+            @RequestParam("files") List<MultipartFile> files,
+            @RequestParam(value = "truckNumber", required = false) String truckNumber) {
         UserEntity user = authService.requireAuthenticatedUser(authorization);
         List<CompletableFuture<ReceiptEntity>> futures = new ArrayList<>();
         for (MultipartFile file : files) {
-            futures.add(processUploadedFileAsync(transporterId, user, file));
+            futures.add(processUploadedFileAsync(transporterId, user, file, truckNumber));
         }
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList()))
@@ -114,7 +116,7 @@ public class ReceiptController {
         UserEntity user = authService.requireAuthenticatedUser(authorization);
         ReceiptEntity entity = new ReceiptEntity();
         entity.setUploadedBy(displayName(user));
-        entity.setOwnerUserId(user.getId());
+        entity.setOwnerUser(user);
         entity.setCompany(user.getCompany());
         entity.setProcessedAt(LocalDateTime.now());
         applyUpdate(entity, request);
@@ -133,12 +135,17 @@ public class ReceiptController {
         return ResponseEntity.ok(receiptRepository.save(entity));
     }
 
-    private CompletableFuture<ReceiptEntity> processUploadedFileAsync(String transporterId, UserEntity user, MultipartFile file) {
-        System.out.println("Processing receipt upload for Transporter ID: " + transporterId);
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReceiptController.class);
+
+    private CompletableFuture<ReceiptEntity> processUploadedFileAsync(String transporterId, UserEntity user, MultipartFile file, String truckNumber) {
+        logger.info("Processing receipt upload for Transporter ID: {}", transporterId);
         ReceiptEntity entity = new ReceiptEntity();
         entity.setUploadedBy(displayName(user));
-        entity.setOwnerUserId(user.getId());
+        entity.setOwnerUser(user);
         entity.setCompany(user.getCompany());
+        if (truckNumber != null && !truckNumber.isBlank()) {
+            entity.setTruckNumber(truckNumber);
+        }
         // Removed duplicate premature save
 
         File imageFile;
@@ -167,8 +174,8 @@ public class ReceiptController {
                 entity.setBiltyDate(valueOrMissing(extractedData.date()));
                 entity.setConsignor(extractedData.consignor() != null ? extractedData.consignor().name() : "");
                 entity.setConsignee(extractedData.consignee() != null ? extractedData.consignee().name() : "");
-                entity.setSource(extractedData.origin());
-                entity.setDestination(extractedData.destination());
+                entity.setSource(normalizeLocation(extractedData.origin()));
+                entity.setDestination(normalizeLocation(extractedData.destination()));
                 entity.setPrivateMarka(extractedData.privateMarka());
                 double totalCharges = extractedData.freight() != null ? extractedData.freight().totalAmount() : -1.0;
                 entity.setCharges(totalCharges);
@@ -275,14 +282,29 @@ public class ReceiptController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/bulk-update-vehicle")
+    public ResponseEntity<List<ReceiptEntity>> bulkUpdateVehicleNumbers(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestBody BulkVehicleUpdateRequest request) {
+        UserEntity user = authService.requireAuthenticatedUser(authorization);
+        List<ReceiptEntity> receipts = receiptRepository.findByIdInAndCompany(request.ids(), user.getCompany());
+        
+        for (ReceiptEntity receipt : receipts) {
+            receipt.setTruckNumber(request.truckNumber());
+        }
+        
+        List<ReceiptEntity> saved = receiptRepository.saveAll(receipts);
+        return ResponseEntity.ok(saved);
+    }
+
     private void applyUpdate(ReceiptEntity existing, JsonNode update) {
         if (update.has("uploadedBy")) existing.setUploadedBy(textValue(update, "uploadedBy"));
         if (update.has("processedAt")) existing.setProcessedAt(objectMapper.convertValue(update.get("processedAt"), LocalDateTime.class));
         if (update.has("grNumber")) existing.setGrNumber(textValue(update, "grNumber"));
         if (update.has("consignor")) existing.setConsignor(textValue(update, "consignor"));
         if (update.has("consignee")) existing.setConsignee(textValue(update, "consignee"));
-        if (update.has("source")) existing.setSource(textValue(update, "source"));
-        if (update.has("destination")) existing.setDestination(textValue(update, "destination"));
+        if (update.has("source")) existing.setSource(normalizeLocation(textValue(update, "source")));
+        if (update.has("destination")) existing.setDestination(normalizeLocation(textValue(update, "destination")));
         if (update.has("biltyDate")) existing.setBiltyDate(textValue(update, "biltyDate"));
         if (update.has("privateMarka")) existing.setPrivateMarka(textValue(update, "privateMarka"));
         if (update.has("packages")) existing.setPackages(update.path("packages").asInt());
@@ -293,6 +315,21 @@ public class ReceiptController {
         if (update.has("confidenceOverall")) existing.setConfidenceOverall(update.path("confidenceOverall").asInt());
         if (update.has("extractedJson")) existing.setExtractedJson(textValue(update, "extractedJson"));
         if (update.has("rejectionReason")) existing.setRejectionReason(textValue(update, "rejectionReason"));
+        if (update.has("truckNumber")) existing.setTruckNumber(textValue(update, "truckNumber"));
+    }
+
+    private String normalizeLocation(String location) {
+        if (location == null || location.isBlank()) return location;
+        String normalized = location.trim().toLowerCase();
+        // Intelligent matching for "Kotkapura" variations
+        if (normalized.contains("kotkapura") || 
+            normalized.contains("kot kapura") || 
+            normalized.contains("kotkpura") || 
+            normalized.contains("kotapura") || 
+            normalized.matches(".*kot\\s*kapura.*98159.*")) {
+            return "KOTKAPURA";
+        }
+        return location.trim().toUpperCase();
     }
 
     private String textValue(JsonNode update, String field) {
@@ -318,7 +355,7 @@ public class ReceiptController {
             @RequestBody ReceiptData receiptData) {
         authService.requireAuthenticatedUser(authorization);
         
-        System.out.println("Generating Excel export for Transporter ID: " + transporterId);
+        logger.info("Generating Excel export for Transporter ID: {}", transporterId);
 
         // Generate Excel based on the data
         ByteArrayInputStream in = excelGeneratorService.generateExcel(receiptData);
@@ -428,7 +465,8 @@ public class ReceiptController {
                 new ReceiptData.Party(firstPresent(receipt.getConsignee(), existing.consignee() != null ? existing.consignee().name() : null, "MISSING"),
                         existing.consignee() != null ? firstPresent(existing.consignee().gstin(), "MISSING") : "MISSING"),
                 List.of(item),
-                freight
+                freight,
+                firstPresent(receipt.getTruckNumber(), existing.truckNumber(), "MISSING")
         );
     }
 
@@ -448,7 +486,8 @@ public class ReceiptController {
                 new ReceiptData.Party("MISSING", "MISSING"),
                 new ReceiptData.Party("MISSING", "MISSING"),
                 List.of(new ReceiptData.Item("MISSING", -1, -1)),
-                new ReceiptData.FreightDetails(-1, -1, -1, -1, "MISSING"));
+                new ReceiptData.FreightDetails(-1, -1, -1, -1, "MISSING"),
+                "MISSING");
     }
 
     private String firstPresent(String... values) {
@@ -461,4 +500,5 @@ public class ReceiptController {
     }
 
     public record BulkReceiptRequest(List<String> ids) {}
+    public record BulkVehicleUpdateRequest(List<String> ids, String truckNumber) {}
 }

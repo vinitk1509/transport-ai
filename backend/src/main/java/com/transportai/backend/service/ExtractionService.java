@@ -158,7 +158,8 @@ public class ExtractionService {
                 items.stream()
                         .map(item -> new ReceiptData.Item(textOrMissing(item.description()), item.quantity(), item.weight()))
                         .toList(),
-                freightOrMissing(receipt.freight())
+                freightOrMissing(receipt.freight()),
+                textOrMissing(receipt.truckNumber())
         );
     }
 

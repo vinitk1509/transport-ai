@@ -185,6 +185,7 @@ export default function ReceiptsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Receipt ID</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">GR No.</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Truck No.</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Consignor</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden md:table-cell">Consignee</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden lg:table-cell">Route</th>
@@ -277,6 +278,7 @@ function ReceiptRow({ receipt: r, selected, onToggle, canDelete, canExport, onDe
       <td className="px-4 py-3 text-xs text-muted-foreground">
         {(r.biltyDate || r.uploadedAt) ? new Date(r.biltyDate || r.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' }) : '-'}
       </td>
+      <td className="px-4 py-3 text-xs font-mono text-foreground">{r.truckNumber || '-'}</td>
       <td className="px-4 py-3 text-xs font-medium text-foreground max-w-[140px] truncate">{r.consignor || '-'}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell max-w-[140px] truncate">{r.consignee || '-'}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{r.source || '-'} → {r.destination || '-'}</td>

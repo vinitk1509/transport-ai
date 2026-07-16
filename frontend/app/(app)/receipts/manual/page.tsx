@@ -22,6 +22,7 @@ const initialForm = {
   description: '',
   charges: '',
   privateMarka: '',
+  truckNumber: '',
 }
 
 export default function ManualReceiptPage() {
@@ -49,6 +50,7 @@ export default function ManualReceiptPage() {
         charges: Number(form.charges || 0),
         amount: Number(form.charges || 0),
         privateMarka: form.privateMarka.trim(),
+        truckNumber: form.truckNumber.trim(),
         rejectionReason: '',
       })
       toast.success('Manual bilty saved')
@@ -76,6 +78,7 @@ export default function ManualReceiptPage() {
           <div className="grid sm:grid-cols-2 gap-4">
             <Field label="GR Number" value={form.grNumber} onChange={(value) => setField('grNumber', value)} />
             <Field label="Bilty Date" type="date" value={form.biltyDate} onChange={(value) => setField('biltyDate', value)} />
+            <Field label="Truck / Vehicle No" value={form.truckNumber} onChange={(value) => setField('truckNumber', value)} />
             <Field label="Consignor" value={form.consignor} onChange={(value) => setField('consignor', value)} />
             <Field label="Consignee" value={form.consignee} onChange={(value) => setField('consignee', value)} />
             <Field label="Source" value={form.source} onChange={(value) => setField('source', value)} />

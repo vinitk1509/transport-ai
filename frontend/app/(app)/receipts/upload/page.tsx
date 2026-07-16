@@ -5,14 +5,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useDropzone } from 'react-dropzone'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, Camera, FileImage, X, CheckCircle, Zap, FileCheck2, AlertCircle } from 'lucide-react'
+import { Upload, Camera, FileImage, X, CheckCircle, Zap, FileCheck2, AlertCircle, Truck, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { api } from '@/lib/api'
+import { api, BackendReceipt } from '@/lib/api'
 import { toast } from 'sonner'
 
-type Stage = 'idle' | 'processing' | 'done'
+type Stage = 'idle' | 'processing' | 'assign-vehicles' | 'done'
 type PreviewFile = File & { preview: string }
 
 const FADE_IN = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, scale: 0.95 } }
@@ -24,9 +26,11 @@ export default function PremiumUploadPage() {
   const [files, setFiles] = useState<PreviewFile[]>([])
   const [stage, setStage] = useState<Stage>('idle')
   const [progress, setProgress] = useState(0)
+  const [truckNumber, setTruckNumber] = useState('')
   
-  // Clean up state
+  const [groupedReceipts, setGroupedReceipts] = useState<{ transportName: string, receipts: BackendReceipt[], truckNumber: string }[]>([])
   const [results, setResults] = useState<{ processed: string[], failed: string[], reviewCount: number }>({ processed: [], failed: [], reviewCount: 0 })
+  const [savingVehicles, setSavingVehicles] = useState(false)
 
   // Clean up ObjectURLs to prevent memory leaks
   useEffect(() => {
@@ -56,15 +60,14 @@ export default function PremiumUploadPage() {
   const processFiles = async () => {
     if (!files.length) return
     setStage('processing')
-    setProgress(15) // Simulate initial network handshake
+    setProgress(15)
     
-    // Simulate gradual progress while waiting for GenAI
     const progressInterval = setInterval(() => {
       setProgress(p => (p < 85 ? p + Math.random() * 5 : p))
     }, 500)
 
     try {
-      const receipts = await api.uploadReceipts(files) // Assuming this is now fully async on backend
+      const receipts = await api.uploadReceipts(files, truckNumber)
       clearInterval(progressInterval)
       setProgress(100)
       
@@ -78,7 +81,32 @@ export default function PremiumUploadPage() {
         reviewCount: reviewNeeded
       })
       
-      setStage('done')
+      if (processed.length > 0) {
+        const groups = new Map<string, BackendReceipt[]>()
+        for (const r of processed) {
+          let transportName = "UNKNOWN TRANSPORT"
+          try {
+             if (r.extractedJson) {
+                 const parsed = JSON.parse(r.extractedJson)
+                 if (parsed?.companyName) transportName = parsed.companyName
+             }
+          } catch(e) {}
+          if (!groups.has(transportName)) groups.set(transportName, [])
+          groups.get(transportName)!.push(r)
+        }
+        
+        const groupData = Array.from(groups.entries()).map(([name, recs]) => ({
+           transportName: name,
+           receipts: recs,
+           truckNumber: truckNumber
+        }))
+        
+        setGroupedReceipts(groupData)
+        setStage('assign-vehicles')
+      } else {
+        setStage('done')
+      }
+      
       toast.success('Extraction complete')
     } catch (error) {
       clearInterval(progressInterval)
@@ -87,6 +115,33 @@ export default function PremiumUploadPage() {
       setStage('idle')
       setProgress(0)
     }
+  }
+  
+  const saveVehicleNumbers = async () => {
+    setSavingVehicles(true)
+    try {
+      for (const group of groupedReceipts) {
+        if (group.truckNumber.trim() !== '') {
+           const ids = group.receipts.map(r => r.id)
+           await api.bulkUpdateVehicleNumbers(ids, group.truckNumber.trim())
+        }
+      }
+      toast.success('Vehicle numbers updated')
+      setStage('done')
+    } catch (e) {
+      toast.error('Failed to update vehicle numbers')
+      console.error(e)
+    } finally {
+      setSavingVehicles(false)
+    }
+  }
+
+  const handleGroupTruckNumberChange = (index: number, val: string) => {
+    setGroupedReceipts(prev => {
+      const next = [...prev]
+      next[index].truckNumber = val
+      return next
+    })
   }
 
   return (
@@ -105,7 +160,21 @@ export default function PremiumUploadPage() {
 
       <AnimatePresence mode="popLayout">
         {stage === 'idle' && (
-          <motion.div key="dropzone" {...FADE_IN} layout>
+          <motion.div key="dropzone" {...FADE_IN} layout className="space-y-6">
+            <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
+              <Label htmlFor="globalTruckNumber" className="text-sm font-medium mb-1.5 block text-foreground flex items-center gap-2">
+                <Truck className="w-4 h-4 text-primary" /> Default Truck/Vehicle No. (Optional)
+              </Label>
+              <Input 
+                id="globalTruckNumber" 
+                placeholder="e.g. MH 12 AB 1234" 
+                value={truckNumber}
+                onChange={(e) => setTruckNumber(e.target.value)}
+                className="max-w-md bg-background"
+              />
+              <p className="text-xs text-muted-foreground mt-2">This vehicle number will be applied to all uploaded bilties in this batch.</p>
+            </div>
+
             <div
               {...getRootProps()}
               className={cn(
@@ -286,6 +355,44 @@ export default function PremiumUploadPage() {
             <div className="max-w-xs mx-auto space-y-2">
               <Progress value={progress} className="h-2 w-full" />
               <p className="text-xs text-muted-foreground font-mono">{Math.round(progress)}%</p>
+            </div>
+          </motion.div>
+        )}
+
+        {stage === 'assign-vehicles' && (
+          <motion.div key="assign-vehicles" {...FADE_IN} className="space-y-6">
+            <div className="bg-primary/10 text-primary p-4 rounded-xl border border-primary/20 flex gap-3 items-start">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                 <h4 className="font-medium">Verify Vehicle Numbers</h4>
+                 <p className="text-sm opacity-90 mt-1">We detected {groupedReceipts.length} distinct transport company(s). Please verify or assign a truck number for each group below.</p>
+              </div>
+            </div>
+            
+            <div className="grid gap-4">
+              {groupedReceipts.map((group, index) => (
+                <div key={index} className="bg-card border border-border p-5 rounded-xl shadow-sm">
+                   <div className="flex justify-between items-center mb-4">
+                      <div className="font-semibold text-foreground">{group.transportName}</div>
+                      <div className="text-sm text-muted-foreground">{group.receipts.length} Bilty(s)</div>
+                   </div>
+                   <div className="space-y-1.5">
+                      <Label className="text-sm">Truck / Vehicle Number</Label>
+                      <Input 
+                        value={group.truckNumber} 
+                        onChange={(e) => handleGroupTruckNumberChange(index, e.target.value)}
+                        placeholder="e.g. MH 12 AB 1234"
+                        className="bg-background"
+                      />
+                   </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex justify-end pt-2">
+               <Button onClick={saveVehicleNumbers} disabled={savingVehicles} className="shadow-md">
+                 <Save className="w-4 h-4 mr-2" /> {savingVehicles ? 'Saving...' : 'Save & Continue'}
+               </Button>
             </div>
           </motion.div>
         )}

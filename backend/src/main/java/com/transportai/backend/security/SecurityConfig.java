@@ -28,7 +28,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
-                        .requestMatchers("/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/verification/**", "/api/v1/health", "/api/v1/auth/avatar/**", "/error").permitAll()
+                        .requestMatchers("/","/api/v1/auth/signup", "/api/v1/auth/login", "/api/v1/auth/verification/**", "/api/v1/health", "/api/v1/auth/avatar/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

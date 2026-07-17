@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1';
+const BACKEND_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1').replace(/\/+$/, '');
 
 export async function middleware(req: NextRequest) {
   const method = req.method;
   
-  // Create the exact backend path, by stripping '/api/proxy'
-  const path = req.nextUrl.pathname.replace(/^\/api\/proxy/, '');
+  let baseUrl = BACKEND_URL;
+  if (baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1);
+  }
+  
+  let path = req.nextUrl.pathname.replace(/^\/api\/proxy/, '');
+  if (!path.startsWith('/')) {
+    path = '/' + path;
+  }
   const searchParams = req.nextUrl.search;
   
-  const targetUrl = `${BACKEND_URL}${path}${searchParams}`;
+  const targetUrl = `${baseUrl}${path}${searchParams}`;
 
   const headers = new Headers(req.headers);
   headers.delete('host');

@@ -24,12 +24,20 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
+    let bodyData: string | undefined;
+    if (method !== 'GET' && method !== 'HEAD') {
+      try {
+        bodyData = await req.text();
+      } catch (e) {
+        // ignore or log
+      }
+    }
+
     const requestOptions: RequestInit & { duplex?: 'half' } = {
       method,
       headers,
       redirect: 'manual',
-      // only include body for methods that allow it
-      body: (method !== 'GET' && method !== 'HEAD') ? req.body : undefined,
+      body: bodyData,
       duplex: 'half',
     };
 
